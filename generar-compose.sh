@@ -19,6 +19,8 @@ services:
       - LOGGING_LEVEL=DEBUG
     networks:
       - testing_net
+    volumes:
+      - ./server/config.ini:/config.ini
 EOL
       
 python3 generador.py $file $2
@@ -26,9 +28,9 @@ python3 generador.py $file $2
 cat << EOL >> $file
 
 networks:
-    testing_net:
-        ipam:
-        driver: default
-        config:
-            - subnet: 172.25.125.0/24
+  testing_net:
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.25.125.0/24
 EOL

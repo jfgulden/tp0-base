@@ -17,6 +17,8 @@ def generate_clients(output_file, clients_num):
       - testing_net
     depends_on:
       - server
+    volumes:
+      - ./client/config.yaml:/config.yaml
 """
                 
                 f.write(client_container)
