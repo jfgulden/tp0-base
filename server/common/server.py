@@ -20,8 +20,6 @@ class Server:
         finishes, servers starts to accept new connections again
         """
 
-        signal.signal(signal.SIGTERM, self.__handle_sigterm)
-
         while self._is_running:
             client_sock = self.__accept_new_connection()
             if client_sock is None or not self._is_running:
@@ -29,7 +27,7 @@ class Server:
 
             self.__handle_client_connection(client_sock)
 
-    def __handle_sigterm(self, signum, frame):
+    def handle_sigterm(self, signum, frame):
         """
         Handle SIGTERM signal
 
@@ -80,7 +78,10 @@ class Server:
             logging.info(f'action: accept_connections | result: success | ip: {addr[0]}')
             return c
         except OSError as e:
-            logging.error(f'action: accept_connections | result: fail | error: {e}')
+            if not self._is_running:
+                logging.info('action: accept_connections | result: success | ip: None')
+            else:
+                logging.error(f'action: accept_connections | result: fail | error: {e}')
             return None
         
         
