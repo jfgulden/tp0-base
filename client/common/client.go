@@ -23,6 +23,7 @@ type ClientConfig struct {
 type Client struct {
 	config ClientConfig
 	conn   net.Conn
+	conn_closed bool
 }
 
 // NewClient Initializes a new client receiving the configuration
@@ -47,6 +48,7 @@ func (c *Client) createClientSocket() error {
 		)
 	}
 	c.conn = conn
+	c.conn_closed = false
 	return nil
 }
 
@@ -67,6 +69,7 @@ func (c *Client) StartClientLoop() {
 		)
 		msg, err := bufio.NewReader(c.conn).ReadString('\n')
 		c.conn.Close()
+		c.conn_closed = true
 
 		if err != nil {
 			log.Errorf("action: receive_message | result: fail | client_id: %v | error: %v",
@@ -86,4 +89,19 @@ func (c *Client) StartClientLoop() {
 
 	}
 	log.Infof("action: loop_finished | result: success | client_id: %v", c.config.ID)
+}
+
+func (c *Client) StopClientLoop() {
+	if c.conn_closed {
+		log.Infof("action: stop_loop | result: success | client_id: %v", c.config.ID)
+		return
+	}
+	err := c.conn.Close()
+	if err != nil {
+		log.Errorf("action: close_connection | result: fail | client_id: %v | error: %v",
+			c.config.ID,
+			err,
+		)
+	}
+	log.Infof("action: close_connection | result: success | client_id: %v", c.config.ID)
 }

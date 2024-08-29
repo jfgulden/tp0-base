@@ -5,7 +5,8 @@ import (
 	"os"
 	"strings"
 	"time"
-
+	"os/signal"
+	"syscall"
 	"github.com/op/go-logging"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
@@ -99,17 +100,25 @@ func main() {
 	if err := InitLogger(v.GetString("log.level")); err != nil {
 		log.Criticalf("%s", err)
 	}
-
+	
 	// Print program config with debugging purposes
 	PrintConfig(v)
-
+	
 	clientConfig := common.ClientConfig{
 		ServerAddress: v.GetString("server.address"),
 		ID:            v.GetString("id"),
 		LoopAmount:    v.GetInt("loop.amount"),
 		LoopPeriod:    v.GetDuration("loop.period"),
 	}
-
+	
 	client := common.NewClient(clientConfig)
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGTERM)
+	go func() {
+		sig := <-sigs
+		log.Infof("action: signal | result: success | signal: %s", sig)
+		client.StopClientLoop() 
+		os.Exit(0) 
+	}()
 	client.StartClientLoop()
 }
