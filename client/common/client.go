@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net"
 	"time"
-
+	"os"
 	"github.com/op/go-logging"
 )
 
@@ -59,7 +59,7 @@ func (c *Client) StartClientLoop() {
 	for msgID := 1; msgID <= c.config.LoopAmount; msgID++ {
 		// Create the connection the server in every loop iteration. Send an
 		c.createClientSocket()
-
+		
 		// TODO: Modify the send to avoid short-write
 		fmt.Fprintf(
 			c.conn,

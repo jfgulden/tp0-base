@@ -19,6 +19,12 @@ services:
     environment:
       - CLI_ID=1
       - CLI_LOG_LEVEL=DEBUG
+      - CLI_NOMBRE=Juan Francisco
+      - CLI_APELLIDO=Gulden
+      - CLI_DNI=43994189
+      - CLI_NACIMIENTO=09-05-2002
+      - CLI_NUMERO=1125
+
     networks:
       - testing_net
     depends_on:
