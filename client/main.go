@@ -117,8 +117,8 @@ func main() {
 	go func() {
 		sig := <-sigs
 		log.Infof("action: signal | result: success | signal: %s", sig)
-		client.StopClientLoop() 
+		client.StopClient() 
 		os.Exit(0) 
 	}()
-	client.StartClientLoop()
+	client.StartClient()
 }

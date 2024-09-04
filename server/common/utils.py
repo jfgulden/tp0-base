@@ -33,7 +33,6 @@ class Bet:
         if not msg:
             return None
         msg = msg.decode('utf-8').split(BET_SEPARATOR)
-        msg = [field.rstrip() for field in msg]
         bet_agency, name, last_name, document, birthdate, number = msg[0], msg[1], msg[2], msg[3], msg[4], msg[5]
         return Bet(bet_agency, name, last_name, document, birthdate, number)
     
