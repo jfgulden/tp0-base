@@ -3,11 +3,12 @@ import datetime
 import time
 
 
+
 """ Bets storage location. """
 STORAGE_FILEPATH = "./bets.csv"
 """ Simulated winner number in the lottery contest. """
 LOTTERY_WINNER_NUMBER = 7574
-
+BET_SEPARATOR = ','
 
 """ A lottery bet registry. """
 class Bet:
@@ -23,6 +24,20 @@ class Bet:
         self.document = document
         self.birthdate = datetime.date.fromisoformat(birthdate)
         self.number = int(number)
+
+    @staticmethod
+    def parse(msg: bytes) -> 'Bet':
+        """
+        Parses a message into a Bet object.
+        """
+        if not msg:
+            return None
+        msg = msg.decode('utf-8').split(BET_SEPARATOR)
+        msg = [field.rstrip() for field in msg]
+        bet_agency, name, last_name, document, birthdate, number = msg[0], msg[1], msg[2], msg[3], msg[4], msg[5]
+        return Bet(bet_agency, name, last_name, document, birthdate, number)
+    
+    
 
 """ Checks whether a bet won the prize or not. """
 def has_won(bet: Bet) -> bool:
