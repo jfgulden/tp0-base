@@ -54,7 +54,7 @@ func (c *Client) createClientSocket() error {
 func (c *Client) sendAll(data []byte) error {
 	totalSent := 0
 	for totalSent < len(data) {
-		n, err := conn.Write(data[totalSent:])
+		n, err := c.conn.Write(data[totalSent:])
 		if err != nil {
 			return err
 		}
@@ -82,7 +82,7 @@ func (c *Client) sendMsg(bet *Bet) error {
 	}
 	log.Infof("action: send_bet | result: success | client_id: %v | msg: %v",
 		c.config.ID,
-		msg,
+		bet.String(),
 	)
 	return nil
 }
@@ -90,10 +90,9 @@ func (c *Client) sendMsg(bet *Bet) error {
 func (c *Client) readAll(length int) ([]byte, error) {
 	buffer := make([]byte, length)
 	totalRead := 0
-	var err error
 	for totalRead < length {
 		
-		n, err := conn.Read(buffer[totalRead:])
+		n, err := c.conn.Read(buffer[totalRead:])
 		if err != nil {
 			return nil, err
 		}
@@ -138,8 +137,8 @@ func (c *Client) StartClient() {
 		c.StopClient()
 		return
 	}
-	msg, err := c.readMsg(len(SERVER_ACK))
-	if err != nil {
+	msg, err := c.readMsg(len(SERVER_ACK + "\n"))
+	if err != nil || msg != SERVER_ACK + "\n" {
 		c.StopClient()
 		return
 	}

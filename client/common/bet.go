@@ -22,7 +22,7 @@ type Bet struct {
 	number string
 }
 
-func NewBet(agency string, first_name string, last_name string, document string, birth_date string, number string) *Bet {
+func NewBet(agency string, first_name string, last_name string, document string, birthdate string, number string) *Bet {
 	bet := &Bet{
 		agency: agency,
 		first_name: first_name,
@@ -35,6 +35,7 @@ func NewBet(agency string, first_name string, last_name string, document string,
 }
 
 func FromEnvBet() (*Bet, error) {
+
 	bet := NewBet(
 		os.Getenv("AGENCY"),
 		os.Getenv("FIRST_NAME"),
@@ -46,9 +47,13 @@ func FromEnvBet() (*Bet, error) {
 	if bet.agency == "" || bet.first_name == "" || bet.last_name == "" || bet.document == "" || bet.birthdate == "" || bet.number == "" {
 		return nil, fmt.Errorf("Not found required environment variables")
 	}
-	return env, nil
+	return bet, nil
+
 }
 
+func (b *Bet) String() string {
+    return fmt.Sprintf("%s, %s, %s, %s, %s, %s", b.agency, b.first_name, b.last_name, b.document, b.birthdate, b.number)
+}
 func (b *Bet) serialize() ([]byte, error) {
 	var buffer bytes.Buffer
 	var msg_len uint32 // 4 bytes
@@ -59,7 +64,7 @@ func (b *Bet) serialize() ([]byte, error) {
     
     msg := strings.Join(parts, SEPARATOR)
 	msg_encoded := []byte(msg)
-	msg_len = len(msg_encoded)
+	msg_len = uint32(len(msg_encoded))
 
 	if err := binary.Write(&buffer, binary.BigEndian, msg_len); err != nil {
         return nil, err
