@@ -80,10 +80,8 @@ func (c *Client) sendMsg(bet *Bet) error {
 		)
 		return err
 	}
-	log.Infof("action: send_bet | result: success | client_id: %v | msg: %v",
-		c.config.ID,
-		bet.String(),
-	)
+	log.Infof("action: apuesta_enviada | result: success | dni: %s | numero: %d", bet.identification, bet.number)
+	
 	return nil
 }
 

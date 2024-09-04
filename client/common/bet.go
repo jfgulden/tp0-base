@@ -17,17 +17,17 @@ type Bet struct {
 	agency string
 	first_name string
 	last_name string
-	document string
+	identification string
 	birthdate string
 	number string
 }
 
-func NewBet(agency string, first_name string, last_name string, document string, birthdate string, number string) *Bet {
+func NewBet(agency string, first_name string, last_name string, identification string, birthdate string, number string) *Bet {
 	bet := &Bet{
 		agency: agency,
 		first_name: first_name,
 		last_name: last_name,
-		document: document,
+		identification: identification,
 		birthdate: birthdate,
 		number: number,
 	}
@@ -40,11 +40,11 @@ func FromEnvBet() (*Bet, error) {
 		os.Getenv("AGENCY"),
 		os.Getenv("FIRST_NAME"),
 		os.Getenv("LAST_NAME"),
-		os.Getenv("DOCUMENT"),
+		os.Getenv("IDENTIFICATION"),
 		os.Getenv("BIRTH_DATE"),
 		os.Getenv("NUMBER"),
 	)
-	if bet.agency == "" || bet.first_name == "" || bet.last_name == "" || bet.document == "" || bet.birthdate == "" || bet.number == "" {
+	if bet.agency == "" || bet.first_name == "" || bet.last_name == "" || bet.identification == "" || bet.birthdate == "" || bet.number == "" {
 		return nil, fmt.Errorf("Not found required environment variables")
 	}
 	return bet, nil
@@ -52,14 +52,14 @@ func FromEnvBet() (*Bet, error) {
 }
 
 func (b *Bet) String() string {
-    return fmt.Sprintf("%s, %s, %s, %s, %s, %s", b.agency, b.first_name, b.last_name, b.document, b.birthdate, b.number)
+    return fmt.Sprintf("%s, %s, %s, %s, %s, %s", b.agency, b.first_name, b.last_name, b.identification, b.birthdate, b.number)
 }
 func (b *Bet) serialize() ([]byte, error) {
 	var buffer bytes.Buffer
 	var msg_len uint32 // 4 bytes
 
     parts := []string{
-        b.agency, b.first_name, b.last_name, b.document, b.birthdate, b.number,
+        b.agency, b.first_name, b.last_name, b.identification, b.birthdate, b.number,
     }
     
     msg := strings.Join(parts, SEPARATOR)
