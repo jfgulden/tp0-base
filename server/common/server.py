@@ -123,6 +123,7 @@ class Server:
 
         except OSError as e:
             logging.error("action: receive_message | result: fail | error: {e}")
+        finally:
             self.client_sock.close()
 
     def __accept_new_connection(self):
