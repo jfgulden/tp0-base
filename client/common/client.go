@@ -4,13 +4,10 @@ import (
 	"net"
 	"time"
 	"github.com/op/go-logging"
-	"bytes"
-	"encoding/csv"
 	"fmt"
-	"encoding/binary"
 	"os"
 	"strings"
-	"io"
+	"encoding/csv"
 )
 const (
 	SERVER_ACK string = "ACK"
@@ -158,10 +155,9 @@ func (c *Client) StartClient() {
 	csvReader := csv.NewReader(file)
 
 	c.createClientSocket()
-
 	bets := c.readBetsFromFile(csvReader, c.config.BatchMaxAmount)
 
-	c.sendBetsAndReceiveAck(bets)
+	c.sendBetsAndReceiveAck(csvReader, bets)
 
 	winners, err := c.receiveWinners()
 	if err != nil {
@@ -179,7 +175,8 @@ func (c *Client) StartClient() {
 	c.conn_closed = true
 }
 
-func (c *Client) sendBetsAndReceiveAck(bets []string) {
+func (c *Client) sendBetsAndReceiveAck(csvReader *csv.Reader, bets []Bet) {
+
 	for len(bets) > 0 {
 		batchToSend, bytesToSend, err := c.prepareBatchForSending(bets)
 		if err != nil || bytesToSend == nil {

@@ -4,7 +4,6 @@ import (
 	"encoding/csv"
 	"io"
 	"strings"
-	"os"
 )
 
 func (c *Client) readBetsFromFile(csvReader *csv.Reader, maxAmount int) []Bet {
