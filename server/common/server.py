@@ -4,10 +4,13 @@ import signal
 import time
 from common.utils import Bet
 from common.utils import store_bets
+from common.utils import search_winner_bets
 
 BATCH_MSG_SIZE = 1 # 1 byte is designed to store a number from 0 to 255, which is enough to know how many bets are going to be sent
 MSG_SIZE = 4 
 SERVER_ANSWER = 'ACK'
+EOF_MSG = "END"
+WINNERS_NUM_BYTES = 1
 
 class Server:
     def __init__(self, port, listen_backlog):
@@ -68,7 +71,7 @@ class Server:
                 logging.error(f"action: receive_message | result: fail | error: {e}")
                 return None
             if not packet:
-                return None
+                break
             buffer += packet
         return buffer
     
@@ -93,10 +96,20 @@ class Server:
         """
 
         try:
-            while self._is_running and self.client_sock:
-                msg_header = self.__read_all(BATCH_MSG_SIZE)         
+            while self.client_sock:
+                msg_header = self.__read_all(BATCH_MSG_SIZE)
                 if not msg_header:
-                    return
+                    responde = msg_header.decode('utf-8')
+                    if responde == EOF_MSG:
+                        #logging.info(f'action: receive_message | result: success | msg: {EOF_MSG}')
+                        winners = search_winner_bets()
+                        #logging.info(f'action: ganadores_obtenidos | result: success | cantidad: {len(winners)}')
+                        winners_len = int.to_bytes(len(winners), WINNERS_NUM_BYTES, byteorder='big')
+                        winners_bytes = winners_len + winners.encode('utf-8')
+                        self.__send_all(winners_bytes)
+
+                    break
+                
                 bets_num = int.from_bytes(msg_header, byteorder='big')
                 
                 logging.info(f'action: receive_message | result: in_progress | msg_length: {bets_num} ')
@@ -120,6 +133,8 @@ class Server:
 
                 self.__send_all((SERVER_ANSWER + '\n').encode('utf-8'))
                 logging.info(f'action: send_message | result: success | ip: {addr[0]} | msg: {SERVER_ANSWER}')
+
+
 
         except OSError as e:
             logging.error("action: receive_message | result: fail | error: {e}")

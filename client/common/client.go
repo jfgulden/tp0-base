@@ -183,7 +183,26 @@ func chunkBets(bets []Bet, maxAmount int) []Bet {
 	}
 	return batches
 }
+func (c *Client) receiveWinners() ([]string, error) {
+	var winners []string
+	msg, err := c.readMsg(DNI_LEN)
 
+	for err != nil || len(msg) == DNI_LEN{
+		winners = append(winners, msg)
+		msg, err = c.readMsg(DNI_LEN)
+	}
+	if err != nil {
+		log.Errorf("action: receive_winners | result: fail | client_id: %v | error: %v", c.config.ID, err)
+		return nil, err
+	}
+	log.Infof("action: receive_winners | result: success | client_id: %v | winners_num: %d", c.config.ID, len(winners))
+
+	if msg != SERVER_ACK + "\n" {
+		log.Errorf("action: receive_final_ack | result: fail | client_id: %v | error: %v", c.config.ID, err)
+		return nil, fmt.Errorf("error receiving final ack")
+	}
+	return winners, nil
+}
 // StartClient sends message to the server and wait for the response
 func (c *Client) StartClient() {
 	file, err_opening_file := os.Open(fmt.Sprintf("/dataset/agency-%s.csv", c.config.ID))
@@ -231,21 +250,8 @@ func (c *Client) StartClient() {
 
 	err = c.sendMsg([]byte(EOF_MSG))
 
-	var winners []string
-	msg, err := c.readMsg(DNI_LEN)
-	while err != nil || len(msg) == DNI_LEN{
-		winners = append(winners, msg)
-		msg, err = c.readMsg(DNI_LEN)
-	}
+	winners, err := c.receiveWinners()
 	if err != nil {
-		log.Errorf("action: receive_winners | result: fail | client_id: %v | error: %v", c.config.ID, err)
-		c.StopClient()
-		return
-	}
-	log.Infof("action: receive_winners | result: success | client_id: %v | winners_num: %d", c.config.ID, len(winners))
-
-	if msg != SERVER_ACK + "\n" {
-		log.Errorf("action: receive_final_ack | result: fail | client_id: %v | error: %v", c.config.ID, err)
 		c.StopClient()
 		return
 	}
