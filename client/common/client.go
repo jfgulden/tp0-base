@@ -5,15 +5,13 @@ import (
 	"time"
 	"github.com/op/go-logging"
 	"bytes"
-	"archive/zip"
 	"encoding/csv"
 	"fmt"
 	"encoding/binary"
-
+	"os"
 )
 const (
 	SERVER_ACK string = "ACK"
-	FILE_PATH string = ".data/dataset.zip"
 	BATCH_MAX_AMOUNT_BYTES int = 8 * 1024
 )
 var log = logging.MustGetLogger("log")
@@ -183,13 +181,11 @@ func chunkBets(bets []Bet, maxAmount int) []Bet {
 
 // StartClient sends message to the server and wait for the response
 func (c *Client) StartClient() {
-	zipFile, err := zip.OpenReader(FILE_PATH)
-	if err != nil {
-		log.Errorf("action: open_zip | result: fail | client_id: %v | error: %v", c.config.ID, err)
-		return 
+	file, err_opening_file := os.Open(fmt.Sprintf("/dataset/agency-%s.csv", c.config.ID))
+	if err_opening_file != nil {
+		log.Errorf("action: open_csv | result: fail | client_id: %v | error: %v", c.config.ID, err_opening_file)
+		return
 	}
-	defer zipFile.Close()
-	file, err := zipFile.Open(fmt.Sprintf("dataset/agency-%d.csv", c.config.ID))
 	defer file.Close()
 	csvReader := csv.NewReader(file)
 	records, err := csvReader.ReadAll()
@@ -218,6 +214,8 @@ func (c *Client) StartClient() {
 			c.StopClient()
 			return
 		}
+		time.Sleep(c.config.LoopPeriod)
+
 		msg, err := c.readMsg(len(SERVER_ACK + "\n"))
 		if err != nil || msg != SERVER_ACK+"\n" {
 			c.StopClient()

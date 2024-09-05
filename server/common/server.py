@@ -2,8 +2,8 @@ import socket
 import logging
 import signal
 import time
-from server.common.utils import Bet
-from server.common.utils import store_bets
+from common.utils import Bet
+from common.utils import store_bets
 
 BATCH_MSG_SIZE = 1 # 1 byte is designed to store a number from 0 to 255, which is enough to know how many bets are going to be sent
 MSG_SIZE = 4 
@@ -36,10 +36,9 @@ class Server:
                 self.__handle_client_connection()
             except OSError as e:
                 logging.error(f"action: receive_message | result: fail | error: {e}")
-            finally:
                 if self.client_sock is not None:
-                    self.client_sock.shutdown(socket.SHUT_RDWR)
-                    self.client_sock.close()                
+                    self.client_sock.close()
+                self._server_socket.close()        
 
 
     def handle_sigterm(self, signum, frame):
@@ -92,36 +91,38 @@ class Server:
         If a problem arises in the communication with the client, the
         client socket will also be closed
         """
-        try:
-            msg_header = self.__read_all(BATCH_MSG_SIZE)         
-            if not msg_header:
-                return
-            msg_len = int.from_bytes(msg_header, byteorder='big')
-            
-            logging.info(f'action: receive_message | result: in_progress | msg_length: {msg_len} ')
-            bets = []
-            for i in range(msg_len):
-                msg_header_bet = self.__read_all(MSG_SIZE)         
-                if not msg_header_bet:
-                    logging.info(f'action: apuesta_recibida | result: fail | cantidad: ${msg_len}')
-                    return
-                msg_len_bet = int.from_bytes(msg_header_bet, byteorder='big')
-                encoded_msg = self.__read_all(msg_len_bet)
-                if not encoded_msg:
-                    return
-                bet = Bet.parse(encoded_msg)
-                bets.append(bet)
-            
-            addr = self.client_sock.getpeername()
-            logging.info(f'action: apuesta_recibida | result: success | cantidad: {msg_len}')
-            store_bets(bets)
-            logging.info(f'action: apuesta_almacenada | result: success | dni: ${bet.document} | numero: ${bet.number}')
 
-            self.__send_all((SERVER_ANSWER + '\n').encode('utf-8'))
-            logging.info(f'action: send_message | result: success | ip: {addr[0]} | msg: {SERVER_ANSWER}')
+        try:
+            while self._is_running and self.client_sock:
+                msg_header = self.__read_all(BATCH_MSG_SIZE)         
+                if not msg_header:
+                    return
+                bets_num = int.from_bytes(msg_header, byteorder='big')
+                
+                logging.info(f'action: receive_message | result: in_progress | msg_length: {bets_num} ')
+                bets = []
+                for i in range(bets_num):
+                    msg_header_bet = self.__read_all(MSG_SIZE)         
+                    if not msg_header_bet:
+                        logging.info(f'action: apuesta_recibida | result: fail | cantidad: {len(bets)}')
+                        return
+                    msg_len_bet = int.from_bytes(msg_header_bet, byteorder='big')
+                    encoded_msg = self.__read_all(msg_len_bet)
+                    if not encoded_msg:
+                        return
+                    bet = Bet.parse(encoded_msg)
+                    bets.append(bet)
+                
+                addr = self.client_sock.getpeername()
+                logging.info(f'action: apuesta_recibida | result: success | cantidad: {len(bets)}')
+                store_bets(bets)
+                logging.info(f'action: apuesta_almacenada | result: success | cantidad: {len(bets)}')
+
+                self.__send_all((SERVER_ANSWER + '\n').encode('utf-8'))
+                logging.info(f'action: send_message | result: success | ip: {addr[0]} | msg: {SERVER_ANSWER}')
+
         except OSError as e:
             logging.error("action: receive_message | result: fail | error: {e}")
-        finally:
             self.client_sock.close()
 
     def __accept_new_connection(self):
