@@ -14,7 +14,9 @@ const (
 	SERVER_ACK string = "ACK"
 	BATCH_MAX_AMOUNT_BYTES int = 8 * 1024
 	DNI_LEN int = 1 // 1 byte
-	EOF_MSG string = "END"
+	EOF_MSG_TRUE uint8 = 1
+	EOF_MSG_FALSE uint8 = 0
+	WINNERS_NUM_BYTES int = 1
 )
 var log = logging.MustGetLogger("log")
 
@@ -54,6 +56,7 @@ func (c *Client) createClientSocket() error {
 			c.config.ID,
 			err,
 		)
+		return err
 	}
 	c.conn = conn
 	c.conn_closed = false
@@ -108,21 +111,21 @@ func (c *Client) readAll(length int) ([]byte, error) {
 func (c *Client) readMsg(length int) (string, error) {
 	buffer, err := c.readAll(length)
 	if err != nil {
-		log.Criticalf("action: receive_ack | result: fail | client_id: %v | error: %v",
+		log.Criticalf("action: receive_msg | result: fail | client_id: %v | error: %v",
 			c.config.ID,
 			err,
 		)
 		return "", err
 	}
 	msg := string(buffer)
-	log.Infof("action: receive_ack | result: success | client_id: %v | msg: %v",
+	log.Infof("action: receive_msg | result: success | client_id: %v | msg: %v",
 		c.config.ID,
 		msg,
 	)
 	return msg, nil
 }
 
-func (c *Client) serialize_batch(bets []Bet) ([]byte, error) {
+func (c *Client) serialize_batch(bets []Bet, eof_flag uint8) ([]byte, error) {
 	var buffer bytes.Buffer
 	for _, bet := range bets {
 		betBuffer, err := bet.serialize()
@@ -139,6 +142,7 @@ func (c *Client) serialize_batch(bets []Bet) ([]byte, error) {
 	}
 	totalLength := uint8(len(bets))
 	var finalBuffer bytes.Buffer
+	binary.Write(&finalBuffer, binary.BigEndian, eof_flag)
 
 	if err := binary.Write(&finalBuffer, binary.BigEndian, totalLength); err != nil {
         return nil, err
@@ -151,7 +155,14 @@ func (c *Client) serialize_batch(bets []Bet) ([]byte, error) {
 func (c *Client) prepareBatchForSending(bets []Bet) ([]Bet, []byte, error) {
 
 	batch := chunkBets(bets, c.config.BatchMaxAmount)
-	buffer, err := c.serialize_batch(batch)
+
+	buffer, err := c.serialize_batch(batch, func() uint8 {
+		if len(batch) == len(bets) {
+			return EOF_MSG_TRUE
+		}
+		return EOF_MSG_FALSE
+	}())
+		
 
 	if err != nil {
 		return batch, nil, err
@@ -163,7 +174,11 @@ func (c *Client) prepareBatchForSending(bets []Bet) ([]Bet, []byte, error) {
 			return nil, nil, fmt.Errorf("batch size too small to continue")
 		}
 		batch = chunkBets(bets, batchSize)
-		buffer, err = c.serialize_batch(batch)
+		if len(batch) == len(bets) {
+			buffer, err = c.serialize_batch(batch, EOF_MSG_TRUE)
+		} else {	
+			buffer, err = c.serialize_batch(batch, EOF_MSG_FALSE)
+		}
 		if err != nil {
 			return batch, nil, err
 		}
@@ -176,6 +191,7 @@ func chunkBets(bets []Bet, maxAmount int) []Bet {
 	batches := make([]Bet, 0, maxAmount)
 
 	if len(bets) <= maxAmount {
+
 		return bets
 	}
 	for i := 0; i < maxAmount; i++ {
@@ -185,11 +201,21 @@ func chunkBets(bets []Bet, maxAmount int) []Bet {
 }
 func (c *Client) receiveWinners() ([]string, error) {
 	var winners []string
-	msg, err := c.readMsg(DNI_LEN)
-
-	for err != nil || len(msg) == DNI_LEN{
-		winners = append(winners, msg)
-		msg, err = c.readMsg(DNI_LEN)
+	
+	msg, err := c.readAll(WINNERS_NUM_BYTES)
+	if err != nil {
+		log.Errorf("action: receive_winners | result: fail | client_id: %v | error: %v", c.config.ID, err)
+		return nil, err
+	}
+	winners_num := int(msg[0])
+	
+	for i := 0; i < winners_num; i++ {
+		dni_msg, err := c.readMsg(DNI_LEN)
+		if err != nil {
+			log.Errorf("action: receive_winners | result: fail | client_id: %v | error: %v", c.config.ID, err)
+			return nil, err
+		}
+		winners = append(winners, dni_msg)
 	}
 	if err != nil {
 		log.Errorf("action: receive_winners | result: fail | client_id: %v | error: %v", c.config.ID, err)
@@ -197,10 +223,6 @@ func (c *Client) receiveWinners() ([]string, error) {
 	}
 	log.Infof("action: receive_winners | result: success | client_id: %v | winners_num: %d", c.config.ID, len(winners))
 
-	if msg != SERVER_ACK + "\n" {
-		log.Errorf("action: receive_final_ack | result: fail | client_id: %v | error: %v", c.config.ID, err)
-		return nil, fmt.Errorf("error receiving final ack")
-	}
 	return winners, nil
 }
 // StartClient sends message to the server and wait for the response
@@ -217,8 +239,6 @@ func (c *Client) StartClient() {
 		log.Errorf("action: read_csv | result: fail | client_id: %v | error: %v", c.config.ID, err)
 		return
 	}
-
-
 	bets := make([]Bet, 0, len(records))
 
 	for _, record := range records {
@@ -248,10 +268,13 @@ func (c *Client) StartClient() {
 		time.Sleep(c.config.LoopPeriod)
 	}
 
-	err = c.sendMsg([]byte(EOF_MSG))
-
 	winners, err := c.receiveWinners()
 	if err != nil {
+		c.StopClient()
+		return
+	}
+	msg, err := c.readMsg(len(SERVER_ACK + "\n"))
+	if err != nil || msg != SERVER_ACK+"\n" {
 		c.StopClient()
 		return
 	}

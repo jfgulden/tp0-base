@@ -1,6 +1,7 @@
 import csv
 import datetime
 import time
+import logging
 
 
 
@@ -32,8 +33,11 @@ class Bet:
         """
         if not msg:
             return None
+        
+        logging.info(f'MENSAJE A PARSEAR A BET: {msg}')
         msg = msg.decode('utf-8').split(BET_SEPARATOR)
         bet_agency, name, last_name, document, birthdate, number = msg[0], msg[1], msg[2], msg[3], msg[4], msg[5]
+
         return Bet(bet_agency, name, last_name, document, birthdate, number)
     
     
@@ -62,6 +66,15 @@ def search_winner_bets() -> list[Bet]:
         if has_won(bet):
             winner_bets.append(bet)
     return winner_bets
+
+def serialize_winners(winners: list[Bet]) -> bytes:
+    """
+    Serializes a list of winners into a byte array.
+    """
+    serialized = []
+    for winner in winners:
+        serialized.append(winner.document)
+    return ','.join(serialized).encode('utf-8')
 
 """
 Loads the information all the bets in the STORAGE_FILEPATH file.
