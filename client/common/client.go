@@ -13,7 +13,7 @@ import (
 )
 const (
 	SERVER_ACK string = "ACK"
-	FILE_PATH string = "../.data/dataset.zip"
+	FILE_PATH string = ".data/dataset.zip"
 	BATCH_MAX_AMOUNT_BYTES int = 8 * 1024
 )
 var log = logging.MustGetLogger("log")

@@ -5,7 +5,8 @@ import time
 from server.common.utils import Bet
 from server.common.utils import store_bets
 
-MSG_SIZE = 1 # 1 byte is designed to store a number from 0 to 255, which is enough to know how many bets are going to be sent
+BATCH_MSG_SIZE = 1 # 1 byte is designed to store a number from 0 to 255, which is enough to know how many bets are going to be sent
+MSG_SIZE = 4 
 SERVER_ANSWER = 'ACK'
 
 class Server:
@@ -92,7 +93,7 @@ class Server:
         client socket will also be closed
         """
         try:
-            msg_header = self.__read_all(MSG_SIZE)         
+            msg_header = self.__read_all(BATCH_MSG_SIZE)         
             if not msg_header:
                 return
             msg_len = int.from_bytes(msg_header, byteorder='big')
@@ -100,15 +101,19 @@ class Server:
             logging.info(f'action: receive_message | result: in_progress | msg_length: {msg_len} ')
             bets = []
             for i in range(msg_len):
-                encoded_msg = self.__read_all(msg_len)
+                msg_header_bet = self.__read_all(MSG_SIZE)         
+                if not msg_header_bet:
+                    logging.info(f'action: apuesta_recibida | result: fail | cantidad: ${msg_len}')
+                    return
+                msg_len_bet = int.from_bytes(msg_header_bet, byteorder='big')
+                encoded_msg = self.__read_all(msg_len_bet)
                 if not encoded_msg:
                     return
                 bet = Bet.parse(encoded_msg)
                 bets.append(bet)
             
             addr = self.client_sock.getpeername()
-            logging.info(f'action: receive_message | result: success | ip: {addr[0]} | msg: {encoded_msg}')
-
+            logging.info(f'action: apuesta_recibida | result: success | cantidad: {msg_len}')
             store_bets(bets)
             logging.info(f'action: apuesta_almacenada | result: success | dni: ${bet.document} | numero: ${bet.number}')
 
