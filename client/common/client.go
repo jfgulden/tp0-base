@@ -13,6 +13,8 @@ import (
 const (
 	SERVER_ACK string = "ACK"
 	BATCH_MAX_AMOUNT_BYTES int = 8 * 1024
+	DNI_LEN int = 1 // 1 byte
+	EOF_MSG string = "END"
 )
 var log = logging.MustGetLogger("log")
 
@@ -97,6 +99,9 @@ func (c *Client) readAll(length int) ([]byte, error) {
 			return nil, err
 		}
 		totalRead += n
+		if n == 0 {
+			break
+		}
 	}
 	return buffer, nil
 }
@@ -214,7 +219,6 @@ func (c *Client) StartClient() {
 			c.StopClient()
 			return
 		}
-		time.Sleep(c.config.LoopPeriod)
 
 		msg, err := c.readMsg(len(SERVER_ACK + "\n"))
 		if err != nil || msg != SERVER_ACK+"\n" {
@@ -222,6 +226,22 @@ func (c *Client) StartClient() {
 			return
 		}
 		bets = bets[len(batchToSend):]
+		time.Sleep(c.config.LoopPeriod)
+	}
+
+	err = c.sendMsg([]byte(EOF_MSG))
+
+	var winners []string
+	msg, err := c.readMsg(DNI_LEN)
+	while err != nil || len(msg) == DNI_LEN{
+		winners = append(winners, msg)
+		msg, err = c.readMsg(DNI_LEN)
+	}
+
+	if msg != SERVER_ACK + "\n" {
+		// log.Errorf("action: receive_final_ack | result: fail | client_id: %v | error: %v", c.config.ID, err)
+		c.StopClient()
+		return
 	}
 
 	c.conn.Close()
