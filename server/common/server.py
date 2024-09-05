@@ -5,7 +5,7 @@ import time
 from server.common.utils import Bet
 from server.common.utils import store_bets
 
-MSG_SIZE = 4
+MSG_SIZE = 1 # 1 byte is designed to store a number from 0 to 255, which is enough to know how many bets are going to be sent
 SERVER_ANSWER = 'ACK'
 
 class Server:
@@ -96,11 +96,15 @@ class Server:
             if not msg_header:
                 return
             msg_len = int.from_bytes(msg_header, byteorder='big')
-            encoded_msg = self.__read_all(msg_len)
+            
             logging.info(f'action: receive_message | result: in_progress | msg_length: {msg_len} ')
-            if not encoded_msg:
-                return
-            bet = Bet.parse(encoded_msg)
+            bets = []
+            for i in range(msg_len):
+                encoded_msg = self.__read_all(msg_len)
+                if not encoded_msg:
+                    return
+                bet = Bet.parse(encoded_msg)
+                bets.append(bet)
             
             addr = self.client_sock.getpeername()
             logging.info(f'action: receive_message | result: success | ip: {addr[0]} | msg: {encoded_msg}')
