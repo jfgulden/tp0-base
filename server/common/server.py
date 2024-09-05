@@ -109,7 +109,7 @@ class Server:
             addr = self.client_sock.getpeername()
             logging.info(f'action: receive_message | result: success | ip: {addr[0]} | msg: {encoded_msg}')
 
-            store_bets([bet])
+            store_bets(bets)
             logging.info(f'action: apuesta_almacenada | result: success | dni: ${bet.document} | numero: ${bet.number}')
 
             self.__send_all((SERVER_ANSWER + '\n').encode('utf-8'))
