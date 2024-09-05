@@ -7,4 +7,5 @@ loop:
 log:
   level: "INFO"
 batch:
-  maxAmount: 6
+  maxAmount: 145 # Considering that a bet has around 55 bytes and the max size of a batch is 8KB
+
