@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"encoding/binary"
 	"os"
+	"strings"
+	"io"
 )
 const (
 	SERVER_ACK string = "ACK"
@@ -199,32 +201,53 @@ func chunkBets(bets []Bet, maxAmount int) []Bet {
 	}
 	return batches
 }
-func (c *Client) receiveWinners() ([]string, error) {
+func (c *Client) receiveWinners() ([]string, error) {	
 	var winners []string
-	
 	msg, err := c.readAll(WINNERS_NUM_BYTES)
 	if err != nil {
 		log.Errorf("action: receive_winners | result: fail | client_id: %v | error: %v", c.config.ID, err)
 		return nil, err
 	}
-	winners_num := int(msg[0])
+		
+	winners_size := int(msg[0])
 	
-	for i := 0; i < winners_num; i++ {
-		dni_msg, err := c.readMsg(DNI_LEN)
-		if err != nil {
-			log.Errorf("action: receive_winners | result: fail | client_id: %v | error: %v", c.config.ID, err)
-			return nil, err
-		}
-		winners = append(winners, dni_msg)
-	}
+	winners_buf, err := c.readMsg(winners_size)
 	if err != nil {
 		log.Errorf("action: receive_winners | result: fail | client_id: %v | error: %v", c.config.ID, err)
 		return nil, err
 	}
-	log.Infof("action: receive_winners | result: success | client_id: %v | winners_num: %d", c.config.ID, len(winners))
-
+	winners = strings.Split(winners_buf, ",")
 	return winners, nil
 }
+func (c *Client) readBetsFromFile(csvReader *csv.Reader, maxAmount int) []Bet {
+	totalBytes := 0
+	var bets []Bet
+	
+	for {
+		record, err := csvReader.Read()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			log.Errorf("action: read_csv | result: fail | client_id: %v | error: %v", c.config.ID, err)
+			return nil
+		}
+
+		recordStr := strings.Join(record, ",") + "\n"
+		recordBytes := len(recordStr)
+		if totalBytes+recordBytes > BATCH_MAX_AMOUNT_BYTES {
+			break
+		}
+
+		totalBytes += recordBytes
+		
+		bet := NewBet(c.config.ID, record[0], record[1], record[2], record[3], record[4])
+		bets = append(bets, *bet)
+		
+	}
+	return bets
+}
+
 // StartClient sends message to the server and wait for the response
 func (c *Client) StartClient() {
 	file, err_opening_file := os.Open(fmt.Sprintf("/dataset/agency-%s.csv", c.config.ID))
@@ -234,18 +257,11 @@ func (c *Client) StartClient() {
 	}
 	defer file.Close()
 	csvReader := csv.NewReader(file)
-	records, err := csvReader.ReadAll()
-	if err != nil {
-		log.Errorf("action: read_csv | result: fail | client_id: %v | error: %v", c.config.ID, err)
-		return
-	}
-	bets := make([]Bet, 0, len(records))
 
-	for _, record := range records {
-		bet := NewBet(c.config.ID, record[0], record[1], record[2], record[3], record[4])
-		bets = append(bets, *bet)
-	}
 	c.createClientSocket()
+
+	bets := c.readBetsFromFile(csvReader, c.config.BatchMaxAmount)
+	
 
 	for len(bets) > 0 {
 		batchToSend, bytesToSend, err := c.prepareBatchForSending(bets)
@@ -266,6 +282,8 @@ func (c *Client) StartClient() {
 		}
 		bets = bets[len(batchToSend):]
 		time.Sleep(c.config.LoopPeriod)
+
+		bets = c.readBetsFromFile(csvReader, c.config.BatchMaxAmount)
 	}
 
 	winners, err := c.receiveWinners()
@@ -278,7 +296,7 @@ func (c *Client) StartClient() {
 		c.StopClient()
 		return
 	}
-	log.Infof("action: receive_final_ack | result: success | client_id: %v | winners: %v", c.config.ID, winners)
+	log.Infof("action: consulta_ganadores | result: success | cant_ganadores: %v", len(winners))
 
 	c.conn.Close()
 	c.conn_closed = true

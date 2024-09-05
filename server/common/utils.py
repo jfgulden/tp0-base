@@ -1,14 +1,11 @@
 import csv
 import datetime
-import time
 import logging
-
-
 
 """ Bets storage location. """
 STORAGE_FILEPATH = "./bets.csv"
 """ Simulated winner number in the lottery contest. """
-LOTTERY_WINNER_NUMBER = 7574
+LOTTERY_WINNER_NUMBER = 4540
 BET_SEPARATOR = ','
 
 """ A lottery bet registry. """
@@ -34,7 +31,6 @@ class Bet:
         if not msg:
             return None
         
-        logging.info(f'MENSAJE A PARSEAR A BET: {msg}')
         msg = msg.decode('utf-8').split(BET_SEPARATOR)
         bet_agency, name, last_name, document, birthdate, number = msg[0], msg[1], msg[2], msg[3], msg[4], msg[5]
 
@@ -60,10 +56,10 @@ def store_bets(bets: list[Bet]) -> None:
 """
 Searches for the winning bets in the STORAGE_FILEPATH file.
 """
-def search_winner_bets() -> list[Bet]:
+def search_winner_bets(agency: int) -> list[Bet]:
     winner_bets = []
     for bet in load_bets():
-        if has_won(bet):
+        if has_won(bet) and int(bet.agency) == agency:
             winner_bets.append(bet)
     return winner_bets
 
@@ -74,7 +70,9 @@ def serialize_winners(winners: list[Bet]) -> bytes:
     serialized = []
     for winner in winners:
         serialized.append(winner.document)
+
     return ','.join(serialized).encode('utf-8')
+
 
 """
 Loads the information all the bets in the STORAGE_FILEPATH file.

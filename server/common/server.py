@@ -90,18 +90,18 @@ class Server:
             total_sent += sent
 
 
-    def send_winners(self):
+    def send_winners(self, agency):
         """
         Sends the winners to the client.
         """
         logging.info(f'action: receive_message | result: success | msg: {EOF_MSG}')
-        winners = search_winner_bets()
-        logging.info(f'action: enviar_ganadores | result: success | cantidad: {len(winners)}')
-        winners_len = int.to_bytes(len(winners), WINNERS_NUM_BYTES, byteorder='big')
+        winners = search_winner_bets(agency)
+        #winners_len = int.to_bytes(len(winners), WINNERS_NUM_BYTES, byteorder='big')
         encoded_winners = serialize_winners(winners)
-        winners_bytes = winners_len + encoded_winners
-
-        self.__send_all(winners_bytes)
+        winners_buff = bytes([len(encoded_winners)]) + encoded_winners
+        #I assume that len(winners) is less than 256
+        self.__send_all(winners_buff)
+        logging.info(f'action: enviar_ganadores | result: success | cantidad: {len(winners)}')
         self.__send_all((SERVER_ANSWER + '\n').encode('utf-8'))
         logging.info(f'action: send_ack | result: success | ip: {self.client_sock.getpeername()[0]} | msg: {SERVER_ANSWER}')
 
@@ -113,6 +113,7 @@ class Server:
         If a problem arises in the communication with the client, the
         client socket will also be closed
         """
+        current_agency = None
         addr = self.client_sock.getpeername()
         try:
             while self.client_sock:
@@ -139,6 +140,8 @@ class Server:
                     if not encoded_msg:
                         return
                     bet = Bet.parse(encoded_msg)
+                    if not current_agency:
+                        current_agency = bet.agency
                     bets.append(bet)
                 
                 logging.info(f'action: apuesta_recibida | result: success | cantidad: {len(bets)}')
@@ -149,7 +152,7 @@ class Server:
                 logging.info(f'action: send_ack | result: success | ip: {addr[0]} | msg: {SERVER_ANSWER}')
 
                 if eof_flag == EOF_MSG:
-                    self.send_winners()
+                    self.send_winners(current_agency)
 
 
         except OSError as e:
