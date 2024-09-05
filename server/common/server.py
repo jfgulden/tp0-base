@@ -83,6 +83,28 @@ class Server:
                 raise RuntimeError("Socket connection broken")
             total_sent += sent
 
+    def __receive_bets(self, bets_num):
+        """
+        Receive bets from the client socket
+
+        Reads the specified number of bets from the client socket and
+        returns a list of Bet objects.
+        """
+
+        bets = []
+        for i in range(bets_num):
+            msg_header_bet = self.__read_all(MSG_SIZE)         
+            if not msg_header_bet:
+                logging.info(f'action: apuesta_recibida | result: fail | cantidad: {len(bets)}')
+                return None
+            msg_len_bet = int.from_bytes(msg_header_bet, byteorder='big')
+            encoded_msg = self.__read_all(msg_len_bet)
+            if not encoded_msg:
+                return None
+            bet = Bet.parse(encoded_msg)
+            bets.append(bet)
+        
+        return bets
 
     def __handle_client_connection(self):
         """
@@ -93,6 +115,7 @@ class Server:
         """
 
         try:
+            addr = self.client_sock.getpeername()
             while self._is_running and self.client_sock:
                 msg_header = self.__read_all(BATCH_MSG_SIZE)         
                 if not msg_header:
@@ -100,20 +123,8 @@ class Server:
                 bets_num = int.from_bytes(msg_header, byteorder='big')
                 
                 logging.info(f'action: receive_message | result: in_progress | msg_length: {bets_num} ')
-                bets = []
-                for i in range(bets_num):
-                    msg_header_bet = self.__read_all(MSG_SIZE)         
-                    if not msg_header_bet:
-                        logging.info(f'action: apuesta_recibida | result: fail | cantidad: {len(bets)}')
-                        return
-                    msg_len_bet = int.from_bytes(msg_header_bet, byteorder='big')
-                    encoded_msg = self.__read_all(msg_len_bet)
-                    if not encoded_msg:
-                        return
-                    bet = Bet.parse(encoded_msg)
-                    bets.append(bet)
+                bets = self.__receive_bets(bets_num)
                 
-                addr = self.client_sock.getpeername()
                 logging.info(f'action: apuesta_recibida | result: success | cantidad: {len(bets)}')
                 store_bets(bets)
                 logging.info(f'action: apuesta_almacenada | result: success | cantidad: {len(bets)}')

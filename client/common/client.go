@@ -1,14 +1,12 @@
 package common
 
 import (
-	"net"
-	"time"
-	"github.com/op/go-logging"
-	"bytes"
 	"encoding/csv"
 	"fmt"
-	"encoding/binary"
+	"net"
 	"os"
+	"time"
+	"github.com/op/go-logging"
 )
 const (
 	SERVER_ACK string = "ACK"
@@ -52,6 +50,7 @@ func (c *Client) createClientSocket() error {
 			c.config.ID,
 			err,
 		)
+		return err
 	}
 	c.conn = conn
 	c.conn_closed = false
@@ -117,68 +116,6 @@ func (c *Client) readMsg(length int) (string, error) {
 	return msg, nil
 }
 
-func (c *Client) serialize_batch(bets []Bet) ([]byte, error) {
-	var buffer bytes.Buffer
-	for _, bet := range bets {
-		betBuffer, err := bet.serialize()
-		if err != nil {
-			log.Criticalf("action: serialize | result: fail | client_id: %v | error: %v",
-				c.config.ID,
-				err,
-			)
-			return nil, err
-		}
-		if _, err := buffer.Write(betBuffer); err != nil {
-			return nil, err
-		}
-	}
-	totalLength := uint8(len(bets))
-	var finalBuffer bytes.Buffer
-
-	if err := binary.Write(&finalBuffer, binary.BigEndian, totalLength); err != nil {
-        return nil, err
-    }
-
-	finalBuffer.Write(buffer.Bytes())
-	return finalBuffer.Bytes(), nil
-}
-
-func (c *Client) prepareBatchForSending(bets []Bet) ([]Bet, []byte, error) {
-
-	batch := chunkBets(bets, c.config.BatchMaxAmount)
-	buffer, err := c.serialize_batch(batch)
-
-	if err != nil {
-		return batch, nil, err
-	}
-
-	for len(buffer) > BATCH_MAX_AMOUNT_BYTES {
-		batchSize := len(batch) * 3 / 4
-		if batchSize < 1 {
-			return nil, nil, fmt.Errorf("batch size too small to continue")
-		}
-		batch = chunkBets(bets, batchSize)
-		buffer, err = c.serialize_batch(batch)
-		if err != nil {
-			return batch, nil, err
-		}
-	}
-	return batch, buffer, nil
-}
-
-
-func chunkBets(bets []Bet, maxAmount int) []Bet {
-	batches := make([]Bet, 0, maxAmount)
-
-	if len(bets) <= maxAmount {
-		return bets
-	}
-	for i := 0; i < maxAmount; i++ {
-		batches = append(batches, bets[i])
-	}
-	return batches
-}
-
 // StartClient sends message to the server and wait for the response
 func (c *Client) StartClient() {
 	file, err_opening_file := os.Open(fmt.Sprintf("/dataset/agency-%s.csv", c.config.ID))
@@ -188,20 +125,17 @@ func (c *Client) StartClient() {
 	}
 	defer file.Close()
 	csvReader := csv.NewReader(file)
-	records, err := csvReader.ReadAll()
-	if err != nil {
-		log.Errorf("action: read_csv | result: fail | client_id: %v | error: %v", c.config.ID, err)
-		return
-	}
 
-
-	bets := make([]Bet, 0, len(records))
-
-	for _, record := range records {
-		bet := NewBet(c.config.ID, record[0], record[1], record[2], record[3], record[4])
-		bets = append(bets, *bet)
-	}
 	c.createClientSocket()
+	bets := c.readBetsFromFile(csvReader, c.config.BatchMaxAmount)
+
+	c.sendBetsAndReceiveAck(csvReader, bets)
+
+	c.conn.Close()
+	c.conn_closed = true
+}
+
+func (c *Client) sendBetsAndReceiveAck(csvReader *csv.Reader, bets []Bet) {
 
 	for len(bets) > 0 {
 		batchToSend, bytesToSend, err := c.prepareBatchForSending(bets)
@@ -214,7 +148,6 @@ func (c *Client) StartClient() {
 			c.StopClient()
 			return
 		}
-		time.Sleep(c.config.LoopPeriod)
 
 		msg, err := c.readMsg(len(SERVER_ACK + "\n"))
 		if err != nil || msg != SERVER_ACK+"\n" {
@@ -222,10 +155,10 @@ func (c *Client) StartClient() {
 			return
 		}
 		bets = bets[len(batchToSend):]
-	}
+		time.Sleep(c.config.LoopPeriod)
 
-	c.conn.Close()
-	c.conn_closed = true
+		bets = c.readBetsFromFile(csvReader, c.config.BatchMaxAmount)
+	}
 }
 
 func (c *Client) StopClient() {
