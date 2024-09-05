@@ -237,12 +237,19 @@ func (c *Client) StartClient() {
 		winners = append(winners, msg)
 		msg, err = c.readMsg(DNI_LEN)
 	}
-
-	if msg != SERVER_ACK + "\n" {
-		// log.Errorf("action: receive_final_ack | result: fail | client_id: %v | error: %v", c.config.ID, err)
+	if err != nil {
+		log.Errorf("action: receive_winners | result: fail | client_id: %v | error: %v", c.config.ID, err)
 		c.StopClient()
 		return
 	}
+	log.Infof("action: receive_winners | result: success | client_id: %v | winners_num: %d", c.config.ID, len(winners))
+
+	if msg != SERVER_ACK + "\n" {
+		log.Errorf("action: receive_final_ack | result: fail | client_id: %v | error: %v", c.config.ID, err)
+		c.StopClient()
+		return
+	}
+	log.Infof("action: receive_final_ack | result: success | client_id: %v | winners: %v", c.config.ID, winners)
 
 	c.conn.Close()
 	c.conn_closed = true
