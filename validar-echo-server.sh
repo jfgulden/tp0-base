@@ -7,7 +7,7 @@ MESSAGE="Hola mundo"
 
 RESPONSE=$(docker run --rm --network tp0_testing_net alpine sh -c "echo \"$MESSAGE\" | nc server $SERVER_PORT")
 
-if [ "$RESPONSE" == "$MESSAGE" ]; then
+if [ "$RESPONSE" = "$MESSAGE" ]; then
     echo "action: test_echo_server | result: success"
 else
     echo "action: test_echo_server | result: fail"
