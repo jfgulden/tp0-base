@@ -50,7 +50,6 @@ def main():
 
     # Initialize server and start server loop
     server = Server(port, listen_backlog)
-    signal.signal(signal.SIGTERM, server.handle_sigterm)
     server.run()
 
 def initialize_log(logging_level):

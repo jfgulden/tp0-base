@@ -11,6 +11,7 @@ SERVER_ANSWER = 'ACK'
 class Server:
     def __init__(self, port, listen_backlog):
         # Initialize server socket
+        signal.signal(signal.SIGTERM, self.handle_sigterm)
         self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._server_socket.bind(('', port))
         self._server_socket.listen(listen_backlog)
