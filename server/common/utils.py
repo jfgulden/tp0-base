@@ -7,6 +7,14 @@ STORAGE_FILEPATH = "./bets.csv"
 """ Simulated winner number in the lottery contest. """
 LOTTERY_WINNER_NUMBER = 4540
 BET_SEPARATOR = ','
+BATCH_MSG_SIZE = 1 # 1 byte is designed to store a number from 0 to 255, which is enough to know how many bets are going to be sent
+MSG_SIZE = 4 
+SERVER_ANSWER = 'ACK'
+EOF_MSG = 1
+EOF_MSG_SIZE = 1
+WINNERS_NUM_BYTES = 1
+AGENCY_NUM_BYTES = 1
+
 
 """ A lottery bet registry. """
 class Bet:
@@ -56,7 +64,7 @@ def store_bets(bets: list[Bet]) -> None:
 """
 Searches for the winning bets in the STORAGE_FILEPATH file.
 """
-def search_winner_bets(agency: int) -> list[Bet]:
+def search_lottery_winners(agency: int) -> list[Bet]:
     winner_bets = []
     for bet in load_bets():
         if has_won(bet) and int(bet.agency) == agency:

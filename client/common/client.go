@@ -8,6 +8,8 @@ import (
 	"os"
 	"strings"
 	"encoding/csv"
+	"encoding/binary"
+	"bytes"
 )
 const (
 	SERVER_ACK string = "ACK"
@@ -143,6 +145,20 @@ func (c *Client) receiveWinners() ([]string, error) {
 	return winners, nil
 }
 
+func (c *Client) sendAgencyID() {
+
+	agency := uint8(c.config.ID[0])
+	var buffer bytes.Buffer
+
+	binary.Write(&buffer, binary.BigEndian, agency)
+	err := c.sendMsg(buffer.Bytes())
+	if err != nil {
+		c.StopClient()
+		return
+	}
+
+}
+
 
 // StartClient sends message to the server and wait for the response
 func (c *Client) StartClient() {
@@ -158,6 +174,7 @@ func (c *Client) StartClient() {
 	bets := c.readBetsFromFile(csvReader, c.config.BatchMaxAmount)
 
 	c.sendBetsAndReceiveAck(csvReader, bets)
+	c.sendAgencyID()
 
 	winners, err := c.receiveWinners()
 	if err != nil {
