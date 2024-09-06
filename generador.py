@@ -12,7 +12,6 @@ def generate_clients(output_file, clients_num):
     entrypoint: /client
     environment:
       - CLI_ID={i}
-      - CLI_LOG_LEVEL=DEBUG
     networks:
       - testing_net
     depends_on:
