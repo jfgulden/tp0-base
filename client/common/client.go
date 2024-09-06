@@ -8,8 +8,6 @@ import (
 	"os"
 	"strings"
 	"encoding/csv"
-	"encoding/binary"
-	"bytes"
 )
 const (
 	SERVER_ACK string = "ACK"
@@ -76,17 +74,17 @@ func (c *Client) sendAll(data []byte) error {
 	return nil
 }
 
-func (c *Client) sendMsg(buffer []byte, ) error {
+func (c *Client) sendMsg(buffer []byte) error {
 
 	err := c.sendAll(buffer)
 	if err != nil {
-		log.Criticalf("action: send_bet | result: fail | client_id: %v | error: %v",
+		log.Criticalf("action: send_msg | result: fail | client_id: %v | error: %v",
 			c.config.ID,
 			err,
 		)
 		return err
 	}
-	log.Infof("action: send_batch | result: success | client_id: %v | batch_size_bytes: %v",
+	log.Infof("action: send_msg | result: success | client_id: %v | msg_size_bytes: %v",
 		c.config.ID,
 		len(buffer),
 	)
@@ -128,6 +126,8 @@ func (c *Client) readMsg(length int) (string, error) {
 
 func (c *Client) receiveWinners() ([]string, error) {	
 	var winners []string
+
+	log.Infof("SOY EL CLIENTE %v Y ME PONGO A LEER LOS WINNERS", c.config.ID)
 	msg, err := c.readAll(WINNERS_NUM_BYTES)
 	if err != nil {
 		log.Errorf("action: receive_winners | result: fail | client_id: %v | error: %v", c.config.ID, err)
@@ -146,12 +146,10 @@ func (c *Client) receiveWinners() ([]string, error) {
 }
 
 func (c *Client) sendAgencyID() {
+	
+	agencyID := []byte(c.config.ID)
+	err := c.sendMsg(agencyID)
 
-	agency := uint8(c.config.ID[0])
-	var buffer bytes.Buffer
-
-	binary.Write(&buffer, binary.BigEndian, agency)
-	err := c.sendMsg(buffer.Bytes())
 	if err != nil {
 		c.StopClient()
 		return

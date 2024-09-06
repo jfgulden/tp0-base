@@ -41,6 +41,7 @@ class Server:
                     self.client_sock.close()
                 self._server_socket.close()     
 
+        logging.info("JOINEO TODOS LOS PROCESOS")
         for process in self.processes:
             process.join()     
 
