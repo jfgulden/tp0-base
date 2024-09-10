@@ -61,34 +61,6 @@ class Server:
         logging.info("action: socket_close | result: success")
         time.sleep(1)
 
-    def __read_all(self, n) -> bytes:
-        """
-        Reads n bytes from the client socket, avoiding short reads.
-        """
-        buffer = b''
-        while len(buffer) < n:
-            try:
-                packet = self.client_sock.recv(n - len(buffer))
-            except OSError as e:
-                logging.error(f"action: receive_message | result: fail | error: {e}")
-                return None
-            if not packet:
-                return None
-            buffer += packet
-        return buffer
-    
-    def __send_all(self, data):
-        """
-        Sends all the data through the socket, avoiding short writes.
-        """
-        total_sent = 0
-        while total_sent < len(data):
-            sent = self.client_sock.send(data[total_sent:])
-            if sent == 0:
-                raise RuntimeError("Socket connection broken")
-            total_sent += sent
-
-
     def __handle_client_connection(self):
         """
         Read message from a specific client socket and closes the socket
@@ -97,28 +69,17 @@ class Server:
         client socket will also be closed
         """
         try:
-            msg_header = self.__read_all(MSG_SIZE)         
-            if not msg_header:
-                return
-            msg_len = int.from_bytes(msg_header, byteorder='big')
-            encoded_msg = self.__read_all(msg_len)
-            logging.info(f'action: receive_message | result: in_progress | msg_length: {msg_len} ')
-            if not encoded_msg:
-                return
-            bet = Bet.parse(encoded_msg)
-            
+            # TODO: Modify the receive to avoid short-reads
+            msg = self.client_sock.recv(1024).rstrip().decode('utf-8')
             addr = self.client_sock.getpeername()
-            logging.info(f'action: receive_message | result: success | ip: {addr[0]} | msg: {encoded_msg}')
-
-            store_bets([bet])
-            logging.info(f'action: apuesta_almacenada | result: success | dni: ${bet.document} | numero: ${bet.number}')
-
-            self.__send_all((SERVER_ANSWER + '\n').encode('utf-8'))
-            logging.info(f'action: send_message | result: success | ip: {addr[0]} | msg: {SERVER_ANSWER}')
+            logging.info(f'action: receive_message | result: success | ip: {addr[0]} | msg: {msg}')
+            # TODO: Modify the send to avoid short-writes
+            self.client_sock.send("{}\n".format(msg).encode('utf-8'))
         except OSError as e:
             logging.error("action: receive_message | result: fail | error: {e}")
         finally:
             self.client_sock.close()
+
 
     def __accept_new_connection(self):
         """
