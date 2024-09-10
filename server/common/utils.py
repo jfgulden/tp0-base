@@ -5,7 +5,7 @@ import logging
 """ Bets storage location. """
 STORAGE_FILEPATH = "./bets.csv"
 """ Simulated winner number in the lottery contest. """
-LOTTERY_WINNER_NUMBER = 4540
+LOTTERY_WINNER_NUMBER = 7939
 BET_SEPARATOR = ','
 BATCH_MSG_SIZE = 1 # 1 byte is designed to store a number from 0 to 255, which is enough to know how many bets are going to be sent
 MSG_SIZE = 4 

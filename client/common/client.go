@@ -127,7 +127,6 @@ func (c *Client) readMsg(length int) (string, error) {
 func (c *Client) receiveWinners() ([]string, error) {	
 	var winners []string
 
-	log.Infof("SOY EL CLIENTE %v Y ME PONGO A LEER LOS WINNERS", c.config.ID)
 	msg, err := c.readAll(WINNERS_NUM_BYTES)
 	if err != nil {
 		log.Errorf("action: receive_winners | result: fail | client_id: %v | error: %v", c.config.ID, err)
@@ -169,9 +168,8 @@ func (c *Client) StartClient() {
 	csvReader := csv.NewReader(file)
 
 	c.createClientSocket()
-	bets := c.readBetsFromFile(csvReader, c.config.BatchMaxAmount)
 
-	c.sendBetsAndReceiveAck(csvReader, bets)
+	c.sendBetsAndReceiveAck(csvReader)
 	c.sendAgencyID()
 
 	winners, err := c.receiveWinners()
@@ -190,8 +188,9 @@ func (c *Client) StartClient() {
 	c.conn_closed = true
 }
 
-func (c *Client) sendBetsAndReceiveAck(csvReader *csv.Reader, bets []Bet) {
-
+func (c *Client) sendBetsAndReceiveAck(csvReader *csv.Reader) {
+	batch := c.readBetsFromFile(csvReader, c.config.BatchMaxAmount)
+	bets := batch
 	for len(bets) > 0 {
 		batchToSend, bytesToSend, err := c.prepareBatchForSending(bets)
 		if err != nil || bytesToSend == nil {
@@ -209,10 +208,15 @@ func (c *Client) sendBetsAndReceiveAck(csvReader *csv.Reader, bets []Bet) {
 			c.StopClient()
 			return
 		}
-		bets = bets[len(batchToSend):]
+		if len(batchToSend) == len(bets) {
+			break
+		}
+		bets = bets[len(batchToSend)-1:]
+
 		time.Sleep(c.config.LoopPeriod)
 
-		bets = c.readBetsFromFile(csvReader, c.config.BatchMaxAmount)
+		batch = c.readBetsFromFile(csvReader, c.config.BatchMaxAmount)
+		bets = append(bets, batch...)
 	}
 }
 

@@ -15,10 +15,11 @@ from multiprocessing import Lock, Process
 
 
 class ClientConnectionHandler:
-    def __init__(self, client_sock, client_address, bets_file_lock):
+    def __init__(self, client_sock, client_address, bets_file_lock, barrier):
         self.client_sock = client_sock
         self.client_address = client_address
         self.bets_file_lock = bets_file_lock    
+        self.barrier = barrier
 
 
     def handle_client_connection(self):
@@ -29,7 +30,7 @@ class ClientConnectionHandler:
                 if not msg_header:
                     return
                 eof_flag = int.from_bytes(msg_header, byteorder='big')
-                logging.info(f'action: receive_message_header | result: in_progress | flag: {eof_flag}')
+                logging.info(f'action: receive_message_header | result: in_progress | flag: {eof_flag} | cliente: {addr[0]}')
 
                 bets = self.handle_bets_comm()
 
@@ -43,7 +44,10 @@ class ClientConnectionHandler:
                 logging.info(f'action: send_ack | result: success | ip: {addr[0]} | msg: {SERVER_ANSWER}')
 
                 if eof_flag == EOF_MSG:
+                    self.barrier.wait_for_all()
                     self.handle_agency_winners()
+                    break
+                    
 
         except OSError as e:
             logging.error(f"action: receive_message | result: fail | error: {e}")
@@ -61,7 +65,6 @@ class ClientConnectionHandler:
         return bets
 
     def handle_agency_winners(self):
-    
         msg_agency = self.__read_all(AGENCY_NUM_BYTES)
         agency = int(msg_agency.decode('utf-8'))
         logging.info(f'action: recibir_agencia | result: success | agencia: {agency}')
@@ -117,13 +120,12 @@ class ClientConnectionHandler:
         Sends the winners to the client.
         """
         with self.bets_file_lock:
-            logging.info(f'TOMO EL LOCK DEL ARCHIVO PARA MANDAR WINNERS A LA AGENCIA {agency}')
             winners = search_lottery_winners(agency)
       
 
         if not winners:
-            self.__send_all(bytes(0))
-            logging.info(f'action: enviar_ganadores A AGENCIA {agency}| result: success | cantidad: {0}')
+            self.__send_all(bytes([0]))
+            logging.info(f'action: enviar_ganadores a agencia {agency}| result: success | cantidad: {0}')
             self.__send_all((SERVER_ANSWER + '\n').encode('utf-8'))
             logging.info(f'action: send_ack | result: success | ip: {self.client_sock.getpeername()[0]} | msg: {SERVER_ANSWER}')
             return
@@ -139,5 +141,5 @@ class ClientConnectionHandler:
     
 
     @staticmethod
-    def New(client_socket, client_address, bets_file_lock):
-        return ClientConnectionHandler(client_socket, client_address, bets_file_lock).handle_client_connection()
+    def New(client_socket, client_address, bets_file_lock, barrier):
+        return ClientConnectionHandler(client_socket, client_address, bets_file_lock, barrier).handle_client_connection()

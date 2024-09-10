@@ -1,9 +1,11 @@
 import socket
 import logging
 import time
-from multiprocessing import Lock, Process
+from multiprocessing import Lock, Process, Value
 from common.client_connection_handler import ClientConnectionHandler
+from common.sync_barrier import SyncBarrier
 
+CLIENTS_NUM = 5
 
 class Server:
     def __init__(self, port, listen_backlog):
@@ -24,6 +26,7 @@ class Server:
         finishes, servers starts to accept new connections again
         """
         bests_file_lock = Lock()
+        barrier = SyncBarrier(CLIENTS_NUM)
 
         while self._is_running:
             try:
@@ -31,7 +34,7 @@ class Server:
                 if self.client_sock is None or not self._is_running:
                     break
                 
-                process = Process(target=ClientConnectionHandler.New, args=(self.client_sock, addr, bests_file_lock))
+                process = Process(target=ClientConnectionHandler.New, args=(self.client_sock, addr, bests_file_lock, barrier))
                 process.start()
                 self.processes.append(process)
 
