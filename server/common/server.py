@@ -107,13 +107,21 @@ class Server:
 
         for client_sock, agency in self.clients_socks.items():
             self.client_sock_running = client_sock
-            self.__send_winners_to_agency(winners_per_agency[agency])
+            winners = winners_per_agency[agency] if agency in winners_per_agency else []
+            self.__send_winners_to_agency(winners)
 
     def __send_winners_to_agency(self, winners):
         
         encoded_winners = serialize_winners(winners)
         winners_buff = bytes([len(encoded_winners)]) + encoded_winners
-            #I assume that len(winners) is less than 256
+        #I assume that len(winners) is less than 256
+        if len(winners) == 0:
+            self.__send_all(bytes([0]))
+            logging.info(f'action: enviar_ganadores a agencia {self.clients_socks[self.client_sock_running]}| result: success | cantidad: {0}')
+            self.__send_all((SERVER_ANSWER + '\n').encode('utf-8'))
+            logging.info(f'action: send_ack | result: success | ip: {self.client_sock_running.getpeername()[0]} | msg: {SERVER_ANSWER}')
+            return  
+        
         self.__send_all(winners_buff)
         logging.info(f'action: enviar_ganadores | result: success | cantidad: {len(winners)}')
         self.__send_all((SERVER_ANSWER + '\n').encode('utf-8'))
