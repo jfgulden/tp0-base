@@ -51,6 +51,9 @@ class Server:
         """
 
         logging.info("action: socket_close | result: in_progress")
+        if self.client_sock is not None:
+            self.client_sock.shutdown(socket.SHUT_RDWR)
+            self.client_sock.close()
         self._is_running = False
         self._server_socket.shutdown(socket.SHUT_RDWR)
         self._server_socket.close()
