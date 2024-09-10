@@ -36,10 +36,11 @@ class Server:
                 self.__handle_client_connection()
             except OSError as e:
                 logging.error(f"action: receive_message | result: fail | error: {e}")
-            finally:
                 if self.client_sock is not None:
                     self.client_sock.shutdown(socket.SHUT_RDWR)
-                    self.client_sock.close()                
+                    self.client_sock.close()      
+                self._server_socket.shutdown(socket.SHUT_RDWR)
+                self._server_socket.close()          
 
 
     def handle_sigterm(self, signum, frame):
