@@ -2,8 +2,8 @@ import socket
 import logging
 import signal
 import time
-from server.common.utils import Bet
-from server.common.utils import store_bets
+from common.utils import Bet
+from common.utils import store_bets
 
 MSG_SIZE = 4
 SERVER_ANSWER = 'ACK'
