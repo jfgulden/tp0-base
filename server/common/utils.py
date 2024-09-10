@@ -56,10 +56,10 @@ def store_bets(bets: list[Bet]) -> None:
 """
 Searches for the winning bets in the STORAGE_FILEPATH file.
 """
-def search_winner_bets(agency: int) -> list[Bet]:
+def search_winner_bets() -> list[Bet]:
     winner_bets = []
     for bet in load_bets():
-        if has_won(bet) and int(bet.agency) == agency:
+        if has_won(bet):
             winner_bets.append(bet)
     return winner_bets
 

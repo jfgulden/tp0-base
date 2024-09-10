@@ -13,6 +13,7 @@ SERVER_ANSWER = 'ACK'
 EOF_MSG = 1
 EOF_MSG_SIZE = 1
 WINNERS_NUM_BYTES = 1
+CLIENTS_NUM = 5
 
 class Server:
     def __init__(self, port, listen_backlog):
@@ -21,7 +22,8 @@ class Server:
         self._server_socket.bind(('', port))
         self._server_socket.listen(listen_backlog)
         self._is_running = True
-        self.client_sock = None
+        self.client_sock_running = None
+        self.clients_socks = {}
 
     def run(self):
         """
@@ -34,15 +36,16 @@ class Server:
 
         while self._is_running:
             try:
-                self.client_sock = self.__accept_new_connection()
-                if self.client_sock is None or not self._is_running:
+                self.client_sock_running = self.__accept_new_connection()
+                if self.client_sock_running is None or not self._is_running:
                     break
 
                 self.__handle_client_connection()
+
             except OSError as e:
                 logging.error(f"action: receive_message | result: fail | error: {e}")
-                if self.client_sock is not None:
-                    self.client_sock.close()
+                if self.client_sock_running is not None:
+                    self.client_sock_running.close()
                 self._server_socket.close()        
 
 
@@ -68,7 +71,7 @@ class Server:
         buffer = b''
         while len(buffer) < n:
             try:
-                packet = self.client_sock.recv(n - len(buffer))
+                packet = self.client_sock_running.recv(n - len(buffer))
             except OSError as e:
                 logging.error(f"action: receive_message | result: fail | error: {e}")
                 return None
@@ -83,27 +86,38 @@ class Server:
         """
         total_sent = 0
         while total_sent < len(data):
-            sent = self.client_sock.send(data[total_sent:])
+            sent = self.client_sock_running.send(data[total_sent:])
             if sent == 0:
                 logging.error("action: send_message | result: fail | error: Socket connection broken")
                 raise RuntimeError("Socket connection broken")
             total_sent += sent
 
 
-    def send_winners(self, agency):
+    def __handle_winners_sending(self):
         """
         Sends the winners to the client.
         """
         logging.info(f'action: receive_message | result: success | msg: {EOF_MSG}')
-        winners = search_winner_bets(agency)
-        #winners_len = int.to_bytes(len(winners), WINNERS_NUM_BYTES, byteorder='big')
+        winners = search_winner_bets()
+        winners_per_agency = {}
+        for winner in winners:
+            if winner.agency not in winners_per_agency:
+                winners_per_agency[winner.agency] = []
+            winners_per_agency[winner.agency].append(winner)
+
+        for client_sock, agency in self.clients_socks.items():
+            self.client_sock_running = client_sock
+            self.__send_winners_to_agency(winners_per_agency[agency])
+
+    def __send_winners_to_agency(self, winners):
+        
         encoded_winners = serialize_winners(winners)
         winners_buff = bytes([len(encoded_winners)]) + encoded_winners
-        #I assume that len(winners) is less than 256
+            #I assume that len(winners) is less than 256
         self.__send_all(winners_buff)
         logging.info(f'action: enviar_ganadores | result: success | cantidad: {len(winners)}')
         self.__send_all((SERVER_ANSWER + '\n').encode('utf-8'))
-        logging.info(f'action: send_ack | result: success | ip: {self.client_sock.getpeername()[0]} | msg: {SERVER_ANSWER}')
+        logging.info(f'action: send_ack | result: success | ip: {self.client_sock_running.getpeername()[0]} | msg: {SERVER_ANSWER}')
 
         
     def __handle_client_connection(self):
@@ -114,9 +128,9 @@ class Server:
         client socket will also be closed
         """
         current_agency = None
-        addr = self.client_sock.getpeername()
+        addr = self.client_sock_running.getpeername()
         try:
-            while self.client_sock:
+            while self.client_sock_running:
                 msg_header = self.__read_all(EOF_MSG_SIZE)
                 if not msg_header:
                     return
@@ -152,13 +166,14 @@ class Server:
                 logging.info(f'action: send_ack | result: success | ip: {addr[0]} | msg: {SERVER_ANSWER}')
 
                 if eof_flag == EOF_MSG:
-                    self.send_winners(current_agency)
+                    self.clients_socks[self.client_sock_running] = current_agency
+                    if len(self.clients_socks) == CLIENTS_NUM:
+                        self.__handle_winners_sending()
 
-
+                    return
+                
         except OSError as e:
             logging.error("action: receive_message | result: fail | error: {e}")
-        finally:
-            self.client_sock.close()
 
     def __accept_new_connection(self):
         """
