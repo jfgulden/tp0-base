@@ -111,5 +111,9 @@ func main() {
 	}
 	
 	client := common.NewClient(clientConfig)
+
+	ctx, cleanup  := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cleanup()
+
 	client.StartClientLoop()
 }
