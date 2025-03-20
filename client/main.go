@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	"github.com/7574-sistemas-distribuidos/docker-compose-init/client/common"
+	"context"
 )
 
 var log = logging.MustGetLogger("log")
@@ -115,5 +116,5 @@ func main() {
 	ctx, cleanup  := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cleanup()
 
-	client.StartClientLoop()
+	client.StartClientLoop(ctx)
 }

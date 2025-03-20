@@ -6,6 +6,7 @@ import (
 	"net"
 	"time"
 	"github.com/op/go-logging"
+	"context"
 )
 
 var log = logging.MustGetLogger("log")
@@ -49,8 +50,8 @@ func (c *Client) createClientSocket() error {
 	return nil
 }
 
-func (c *Client) sendMsg(msgID int) error {
-	
+func (c *Client) sendMsg(msgID int) {
+
 	defer c.conn.Close()
 	fmt.Fprintf(
 		c.conn,
