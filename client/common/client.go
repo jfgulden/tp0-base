@@ -57,6 +57,7 @@ func (c *Client) handleSigterm() {
 		log.Infof("action: signal | result: success | signal: %s", sig)
 		if (c.conn != nil) {
 			c.StopClientLoop()
+			c.conn = nil
 		}
 	
 		os.Exit(0)
@@ -80,6 +81,9 @@ func (c *Client) StartClientLoop() {
 			c.config.ID,
 			msgID,
 		)
+		if (c.conn == nil) {
+			return
+		}
 		msg, err := bufio.NewReader(c.conn).ReadString('\n')
 		c.conn.Close()
 
