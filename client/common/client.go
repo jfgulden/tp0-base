@@ -68,7 +68,7 @@ func (c *Client) StartClientLoop(ctx context.Context) {
 			msgID,
 		)
 		msg, err := bufio.NewReader(c.conn).ReadString('\n')
-		c.conn.Close()
+		defer c.conn.Close()
 
 		if err != nil {
 			log.Errorf("action: receive_message | result: fail | client_id: %v | error: %v",
@@ -83,14 +83,14 @@ func (c *Client) StartClientLoop(ctx context.Context) {
 			msg,
 		)
 
+		select{
 		case <-ctx.Done():
 			c.conn.Close()
 			log.Infof("action: close_connection | result: success | client_id: %v", c.config.ID)
 			return
-
-		// Wait a time between sending one message and the next one
-		time.Sleep(c.config.LoopPeriod)
-
+		case <-time.After(c.config.LoopPeriod):
+			// Wait a time between sending one message and the next one
+		}
 	}
 	log.Infof("action: loop_finished | result: success | client_id: %v", c.config.ID)
 }
