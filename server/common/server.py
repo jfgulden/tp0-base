@@ -111,14 +111,10 @@ class Server:
 
         store_bets([bet])
         logging.info(f'action: apuesta_almacenada | result: success | dni: ${bet.document} | numero: ${bet.number}')
-
-        try:
-            self.__send_all((SERVER_ANSWER + '\n').encode('utf-8'))
-            logging.info(f'action: send_ack | result: success | ip: {addr[0]} | msg: {SERVER_ANSWER}')
-        except RuntimeError as e:
-            logging.error(f"action: send_ack | result: fail | error: {e}")
-        return
-
+            
+        self.__send_all((SERVER_ANSWER + '\n').encode('utf-8'))
+        logging.info(f'action: send_ack | result: success | ip: {addr[0]} | msg: {SERVER_ANSWER}')
+    
 
 
     def __accept_new_connection(self):

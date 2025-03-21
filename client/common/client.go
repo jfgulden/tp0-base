@@ -113,7 +113,7 @@ func (c *Client) StartClient() {
 	c.createClientSocket()
 	defer c.conn.Close()
 
-	bet, err := FromEnvBet()
+	bet, err := FromEnvBet(c.config.ID)
 	if err != nil {
 		log.Criticalf("action: create_bet | result: fail | client_id: %v | error: %v",	
 			c.config.ID,
@@ -137,6 +137,9 @@ func (c *Client) StartClient() {
 			err,
 		)
 		return
+	}
+	if msg == SERVER_ACK + "\n" {
+		log.Infof("action: receive_ack | result: success | client_id: %v | numero: %s", c.config.ID, bet.number)
 	}
 	log.Infof("action: apuesta_enviada | result: success | dni: %s | numero: %s", bet.identification, bet.number)
 }
