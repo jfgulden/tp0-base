@@ -139,8 +139,8 @@ func (c *Client) StartClient() {
 		)
 		return
 	}
-	if msg == SERVER_ACK + "\n" {
-		log.Infof("action: receive_ack | result: success | client_id: %v | numero: %s", c.config.ID, bet.number)
-	}
+	
+	log.Infof("action: receive_ack | result: success | client_id: %v | numero: %s | received: %s", c.config.ID, bet.number, msg)
+	
 	log.Infof("action: apuesta_enviada | result: success | dni: %s | numero: %s", bet.identification, bet.number)
 }

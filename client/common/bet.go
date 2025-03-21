@@ -36,7 +36,7 @@ func NewBet(agency string, first_name string, last_name string, identification s
 func FromEnvBet() (*Bet, error) {
 
 	bet := NewBet(
-		os.Getenv("AGENCY"),
+		os.Getenv("AGENCIA"),
 		os.Getenv("NOMBRE"),
 		os.Getenv("APELLIDO"),
 		os.Getenv("DOCUMENTO"),
