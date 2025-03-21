@@ -2,8 +2,8 @@ import socket
 import logging
 import signal
 import time
-from server.common.utils import Bet
-from server.common.utils import store_bets
+from .utils import Bet
+from .utils import store_bets
 
 MSG_SIZE = 4
 SERVER_ANSWER = 'ACK'
@@ -37,9 +37,13 @@ class Server:
                 logging.error(f"action: receive_message | result: fail | error: {e}")
             finally:
                 if self.client_sock is not None:
-                    self.client_sock.shutdown(socket.SHUT_RDWR)
-                    self.client_sock.close()                
-
+                    try:
+                        logging.info("action: socket_close | result: in_progress")
+                        self.client_sock.shutdown(socket.SHUT_RDWR)
+                    except OSError as e:
+                        logging.warning(f"Socket shutdown error: {e}")
+                    finally:
+                        self.client_sock.close()
 
     def handle_sigterm(self, signum, frame):
         """
@@ -91,29 +95,31 @@ class Server:
         If a problem arises in the communication with the client, the
         client socket will also be closed
         """
+      
+        msg_header = self.__read_all(MSG_SIZE)         
+        if not msg_header:
+            return
+        msg_len = int.from_bytes(msg_header, byteorder='big')
+        encoded_msg = self.__read_all(msg_len)
+        logging.info(f'action: receive_message | result: in_progress | msg_length: {msg_len} ')
+        if not encoded_msg:
+            return
+        bet = Bet.parse(encoded_msg)
+        
+        addr = self.client_sock.getpeername()
+        logging.info(f'action: receive_message | result: success | ip: {addr[0]} | msg: {encoded_msg}')
+
+        store_bets([bet])
+        logging.info(f'action: apuesta_almacenada | result: success | dni: ${bet.document} | numero: ${bet.number}')
+
         try:
-            msg_header = self.__read_all(MSG_SIZE)         
-            if not msg_header:
-                return
-            msg_len = int.from_bytes(msg_header, byteorder='big')
-            encoded_msg = self.__read_all(msg_len)
-            logging.info(f'action: receive_message | result: in_progress | msg_length: {msg_len} ')
-            if not encoded_msg:
-                return
-            bet = Bet.parse(encoded_msg)
-            
-            addr = self.client_sock.getpeername()
-            logging.info(f'action: receive_message | result: success | ip: {addr[0]} | msg: {encoded_msg}')
-
-            store_bets([bet])
-            logging.info(f'action: apuesta_almacenada | result: success | dni: ${bet.document} | numero: ${bet.number}')
-
             self.__send_all((SERVER_ANSWER + '\n').encode('utf-8'))
-            logging.info(f'action: send_message | result: success | ip: {addr[0]} | msg: {SERVER_ANSWER}')
-        except OSError as e:
-            logging.error("action: receive_message | result: fail | error: {e}")
-        finally:
-            self.client_sock.close()
+            logging.info(f'action: send_ack | result: success | ip: {addr[0]} | msg: {SERVER_ANSWER}')
+        except RuntimeError as e:
+            logging.error(f"action: send_ack | result: fail | error: {e}")
+        return
+
+
 
     def __accept_new_connection(self):
         """

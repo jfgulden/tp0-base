@@ -22,7 +22,6 @@ type ClientConfig struct {
 type Client struct {
 	config ClientConfig
 	conn   net.Conn
-	conn_closed bool
 }
 
 // NewClient Initializes a new client receiving the configuration
@@ -47,7 +46,6 @@ func (c *Client) createClientSocket() error {
 		)
 	}
 	c.conn = conn
-	c.conn_closed = false
 	return nil
 }
 
@@ -80,8 +78,6 @@ func (c *Client) sendMsg(bet *Bet) error {
 		)
 		return err
 	}
-	log.Infof("action: apuesta_enviada | result: success | dni: %s | numero: %d", bet.identification, bet.number)
-	
 	return nil
 }
 
@@ -108,10 +104,6 @@ func (c *Client) readMsg(length int) (string, error) {
 		return "", err
 	}
 	msg := string(buffer)
-	log.Infof("action: receive_ack | result: success | client_id: %v | msg: %v",
-		c.config.ID,
-		msg,
-	)
 	return msg, nil
 }
 
@@ -119,6 +111,7 @@ func (c *Client) readMsg(length int) (string, error) {
 func (c *Client) StartClient() {
 
 	c.createClientSocket()
+	defer c.conn.Close()
 
 	bet, err := FromEnvBet()
 	if err != nil {
@@ -126,36 +119,24 @@ func (c *Client) StartClient() {
 			c.config.ID,
 			err,
 		)
-		c.StopClient()
 		return
 	}
 
 	err = c.sendMsg(bet)
 	if err != nil {	
-		c.StopClient()
+		log.Criticalf("action: send_bet | result: fail | client_id: %v | error: %v",
+			c.config.ID,
+			err,
+		)
 		return
 	}
 	msg, err := c.readMsg(len(SERVER_ACK + "\n"))
 	if err != nil || msg != SERVER_ACK + "\n" {
-		c.StopClient()
-		return
-	}
-
-	c.conn.Close()
-	c.conn_closed = true
-}
-
-func (c *Client) StopClient() {
-	if c.conn_closed {
-		log.Infof("action: close_connection | result: success | client_id: %v", c.config.ID)
-		return
-	}
-	err := c.conn.Close()
-	if err != nil {
-		log.Errorf("action: close_connection | result: fail | client_id: %v | error: %v",
+		log.Criticalf("action: receive_ack | result: fail | client_id: %v | error: %v",
 			c.config.ID,
 			err,
 		)
+		return
 	}
-	log.Infof("action: close_connection | result: success | client_id: %v", c.config.ID)
+	log.Infof("action: apuesta_enviada | result: success | dni: %s | numero: %s", bet.identification, bet.number)
 }

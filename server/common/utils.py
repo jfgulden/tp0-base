@@ -1,6 +1,6 @@
 import csv
 import datetime
-import time
+import logging
 
 
 
@@ -33,6 +33,7 @@ class Bet:
         if not msg:
             return None
         msg = msg.decode('utf-8').split(BET_SEPARATOR)
+        logging.info(f'action: parse_message | result: success | msg: {msg}')
         bet_agency, name, last_name, document, birthdate, number = msg[0], msg[1], msg[2], msg[3], msg[4], msg[5]
         return Bet(bet_agency, name, last_name, document, birthdate, number)
     
