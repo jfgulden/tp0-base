@@ -122,11 +122,15 @@ class Server:
                     return
                 bets_num = int.from_bytes(msg_header, byteorder='big')
                 
+                logging.info(f'action: receive_message | result: in_progress | msg_length: {bets_num} ')
                 bets = self.__receive_bets(bets_num)
                 
                 logging.info(f'action: apuesta_recibida | result: success | cantidad: {len(bets)}')
                 store_bets(bets)
+                logging.info(f'action: apuesta_almacenada | result: success | cantidad: {len(bets)}')
+
                 self.__send_all((SERVER_ANSWER + '\n').encode('utf-8'))
+                logging.info(f'action: send_message | result: success | ip: {addr[0]} | msg: {SERVER_ANSWER}')
 
         except OSError as e:
             logging.error("action: receive_message | result: fail | error: {e}")
@@ -142,6 +146,7 @@ class Server:
         """
 
         # Connection arrived
+        logging.info('action: accept_connections | result: in_progress')
         try:
             c, addr = self._server_socket.accept()
             logging.info(f'action: accept_connections | result: success | ip: {addr[0]}')
