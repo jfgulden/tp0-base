@@ -13,6 +13,12 @@ def generate_clients(output_file, clients_num):
     environment:
       - CLI_ID={i}
       - CLI_LOG_LEVEL=DEBUG
+      - AGENCIA={i}
+      - NOMBRE=Juan
+      - APELLIDO=Perez
+      - DOCUMENTO=12345678
+      - NACIMIENTO=1990-01-01
+      - NUMERO=1411
     networks:
       - testing_net
     depends_on:
