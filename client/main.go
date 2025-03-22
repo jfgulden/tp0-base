@@ -5,8 +5,6 @@ import (
 	"os"
 	"strings"
 	"time"
-	"os/signal"
-	"syscall"
 	"github.com/op/go-logging"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
@@ -113,14 +111,6 @@ func main() {
 	}
 	
 	client := common.NewClient(clientConfig)
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGTERM)
-	go func() {
-		sig := <-sigs
-		log.Infof("action: signal | result: success | signal: %s", sig)
-		client.StopClient() 
-		os.Exit(0) 
-	}()
 
 	client.StartClient()
 }

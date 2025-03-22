@@ -1,11 +1,9 @@
-# id: 1
 server:
   address: "server:12345"
 loop:
-  amount: 5
-  period: "5s"
+  amount: 3
+  period: "50ms"
 log:
   level: "INFO"
 batch:
-  maxAmount: 145 # Considering that a bet has around 55 bytes and the max size of a batch is 8KB
-
+  maxAmount: 99

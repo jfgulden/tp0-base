@@ -128,15 +128,15 @@ func (c *Client) StartClient() {
 
 	c.createClientSocket()
 	bets := c.readBetsFromFile(csvReader, c.config.BatchMaxAmount)
-
+	
 	c.sendBetsAndReceiveAck(csvReader, bets)
-
+	
 	c.conn.Close()
 	c.conn_closed = true
 }
 
 func (c *Client) sendBetsAndReceiveAck(csvReader *csv.Reader, bets []Bet) {
-
+	newBets := make([]Bet, 0)
 	for len(bets) > 0 {
 		batchToSend, bytesToSend, err := c.prepareBatchForSending(bets)
 		if err != nil || bytesToSend == nil {
@@ -157,7 +157,8 @@ func (c *Client) sendBetsAndReceiveAck(csvReader *csv.Reader, bets []Bet) {
 		bets = bets[len(batchToSend):]
 		time.Sleep(c.config.LoopPeriod)
 
-		bets = c.readBetsFromFile(csvReader, c.config.BatchMaxAmount)
+		newBets = c.readBetsFromFile(csvReader, c.config.BatchMaxAmount)
+		bets = append(bets, newBets...)
 	}
 }
 
