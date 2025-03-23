@@ -25,6 +25,7 @@ services:
       - server
     volumes:
       - ./client/config.yaml:/config.yaml
+      - ./.data:/dataset
 
   client2:
     container_name: client2
@@ -39,6 +40,7 @@ services:
       - server
     volumes:
       - ./client/config.yaml:/config.yaml
+      - ./.data:/dataset
 
   client3:
     container_name: client3
@@ -53,6 +55,7 @@ services:
       - server
     volumes:
       - ./client/config.yaml:/config.yaml
+      - ./.data:/dataset
 
 networks:
   testing_net:
