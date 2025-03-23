@@ -25,6 +25,7 @@ def generate_clients(output_file, clients_num):
       - server
     volumes:
       - ./client/config.yaml:/config.yaml
+      - ./.data:/dataset
 """
                 
                 f.write(client_container)
