@@ -22,15 +22,15 @@ func (c *Client) readBetsFromFile(csvReader *csv.Reader, maxAmount int) []Bet {
 
 		recordStr := strings.Join(record, ",") + "\n"
 		recordBytes := len(recordStr)
-		if totalBytes+recordBytes > BATCH_MAX_AMOUNT_BYTES {
-			break
-		}
+
 
 		totalBytes += recordBytes
 		
 		bet := NewBet(c.config.ID, record[0], record[1], record[2], record[3], record[4])
 		bets = append(bets, *bet)
-		
+		if totalBytes >= BATCH_MAX_AMOUNT_BYTES {
+			break
+		}
 	}
 	return bets
 }

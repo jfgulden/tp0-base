@@ -1,7 +1,6 @@
 package common
 
 import (
-	"fmt"
 	"bytes"
 	"encoding/binary"
 	"os"
@@ -44,16 +43,10 @@ func FromEnvBet() (*Bet, error) {
 		os.Getenv("BIRTH_DATE"),
 		os.Getenv("NUMBER"),
 	)
-	if bet.agency == "" || bet.first_name == "" || bet.last_name == "" || bet.identification == "" || bet.birthdate == "" || bet.number == "" {
-		return nil, fmt.Errorf("Not found required environment variables")
-	}
 	return bet, nil
 
 }
 
-func (b *Bet) String() string {
-    return fmt.Sprintf("%s, %s, %s, %s, %s, %s", b.agency, b.first_name, b.last_name, b.identification, b.birthdate, b.number)
-}
 func (b *Bet) serialize() ([]byte, error)  {
 	var buffer bytes.Buffer
 	var msg_len uint32 // 4 bytes

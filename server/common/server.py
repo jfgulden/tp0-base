@@ -41,11 +41,17 @@ class Server:
                     break
 
                 self.__handle_client_connection()
+                if len(self.clients_socks) == CLIENTS_NUM:
+                    self.__handle_winners_sending()
+                    self._is_running = False
+                    self._server_socket.shutdown(socket.SHUT_RDWR)
+                    self._server_socket.close()  
 
             except OSError as e:
                 logging.error(f"action: receive_message | result: fail | error: {e}")
                 if self.client_sock_running is not None:
                     self.client_sock_running.close()
+                    
                 self._server_socket.close()        
 
 
@@ -72,11 +78,12 @@ class Server:
         while len(buffer) < n:
             try:
                 packet = self.client_sock_running.recv(n - len(buffer))
+                if not packet:
+                    break
             except OSError as e:
                 logging.error(f"action: receive_message | result: fail | error: {e}")
                 return None
-            if not packet:
-                break
+
             buffer += packet
         return buffer
     
@@ -97,7 +104,6 @@ class Server:
         """
         Sends the winners to the client.
         """
-        logging.info(f'action: receive_message | result: success | msg: {EOF_MSG}')
         winners = search_winner_bets()
         winners_per_agency = {}
         for winner in winners:
@@ -105,7 +111,7 @@ class Server:
                 winners_per_agency[winner.agency] = []
             winners_per_agency[winner.agency].append(winner)
 
-        for client_sock, agency in self.clients_socks.items():
+        for agency, client_sock  in self.clients_socks.items():
             self.client_sock_running = client_sock
             winners = winners_per_agency[agency] if agency in winners_per_agency else []
             self.__send_winners_to_agency(winners)
@@ -117,15 +123,10 @@ class Server:
         #I assume that len(winners) is less than 256
         if len(winners) == 0:
             self.__send_all(bytes([0]))
-            logging.info(f'action: enviar_ganadores a agencia {self.clients_socks[self.client_sock_running]}| result: success | cantidad: {0}')
-            self.__send_all((SERVER_ANSWER + '\n').encode('utf-8'))
-            logging.info(f'action: send_ack | result: success | ip: {self.client_sock_running.getpeername()[0]} | msg: {SERVER_ANSWER}')
-            return  
-        
-        self.__send_all(winners_buff)
+        else:
+            self.__send_all(winners_buff)
+            
         logging.info(f'action: enviar_ganadores | result: success | cantidad: {len(winners)}')
-        self.__send_all((SERVER_ANSWER + '\n').encode('utf-8'))
-        logging.info(f'action: send_ack | result: success | ip: {self.client_sock_running.getpeername()[0]} | msg: {SERVER_ANSWER}')
 
         
     def __handle_client_connection(self):
@@ -136,12 +137,11 @@ class Server:
         client socket will also be closed
         """
         current_agency = None
-        addr = self.client_sock_running.getpeername()
+
         try:
             while self.client_sock_running:
                 msg_header = self.__read_all(EOF_MSG_SIZE)
-                if not msg_header:
-                    return
+
                 eof_flag = int.from_bytes(msg_header, byteorder='big')
                 logging.info(f'action: receive_message | result: in_progress | flag: {eof_flag}')
                 
@@ -149,36 +149,26 @@ class Server:
                 msg_header = self.__read_all(BATCH_MSG_SIZE)
                 bets_num = int.from_bytes(msg_header, byteorder='big')
 
-                
-                logging.info(f'action: receive_message | result: in_progress | msg_length: {bets_num} ')
                 bets = []
                 for i in range(bets_num):
                     msg_header_bet = self.__read_all(MSG_SIZE)         
-                    if not msg_header_bet:
-                        logging.info(f'action: apuesta_recibida | result: fail | cantidad: {len(bets)}')
-                        return
                     msg_len_bet = int.from_bytes(msg_header_bet, byteorder='big')
                     encoded_msg = self.__read_all(msg_len_bet)
-                    if not encoded_msg:
-                        return
+
                     bet = Bet.parse(encoded_msg)
                     if not current_agency:
                         current_agency = bet.agency
+                        self.clients_socks[current_agency] = self.client_sock_running
+                        
                     bets.append(bet)
                 
                 logging.info(f'action: apuesta_recibida | result: success | cantidad: {len(bets)}')
                 store_bets(bets)
-                logging.info(f'action: apuesta_almacenada | result: success | cantidad: {len(bets)}')
 
                 self.__send_all((SERVER_ANSWER + '\n').encode('utf-8'))
-                logging.info(f'action: send_ack | result: success | ip: {addr[0]} | msg: {SERVER_ANSWER}')
-
+                
                 if eof_flag == EOF_MSG:
-                    self.clients_socks[self.client_sock_running] = current_agency
-                    if len(self.clients_socks) == CLIENTS_NUM:
-                        self.__handle_winners_sending()
-
-                    return
+                    break
                 
         except OSError as e:
             logging.error("action: receive_message | result: fail | error: {e}")
@@ -192,16 +182,12 @@ class Server:
         """
 
         # Connection arrived
-        logging.info('action: accept_connections | result: in_progress')
         try:
             c, addr = self._server_socket.accept()
             logging.info(f'action: accept_connections | result: success | ip: {addr[0]}')
             return c
         except OSError as e:
-            if not self._is_running:
-                logging.info('action: accept_connections | result: success | ip: None')
-            else:
-                logging.error(f'action: accept_connections | result: fail | error: {e}')
+            logging.error(f'action: accept_connections | result: fail | error: {e}')
             return None
         
         

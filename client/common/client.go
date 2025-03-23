@@ -174,6 +174,8 @@ func (c *Client) StartClient() {
 	c.conn_closed = true
 }
 
+var total_bets_sent int = 0
+
 func (c *Client) sendBetsAndReceiveAck(csvReader *csv.Reader) {
 	
 	batch := c.readBetsFromFile(csvReader, c.config.BatchMaxAmount)
@@ -198,12 +200,12 @@ func (c *Client) sendBetsAndReceiveAck(csvReader *csv.Reader) {
 		if len(bets) == len(batchToSend) {
 			break
 		}
-		bets = bets[len(batchToSend)-1:]
+		bets = bets[len(batchToSend):]
 		
 		time.Sleep(c.config.LoopPeriod)
 
 		batch = c.readBetsFromFile(csvReader, c.config.BatchMaxAmount)
-		bets = append(bets, batch...)
+		bets = append(bets, batch...) 
 	}
 }
 
