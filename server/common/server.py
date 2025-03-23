@@ -38,7 +38,8 @@ class Server:
                 process.start()
                 self.processes.append(process)
                 
-                
+                if len(self.processes) == CLIENTS_NUM:
+                    break
 
             except OSError as e:
                 logging.error(f"action: accept_connections | result: fail | error: {e}")
