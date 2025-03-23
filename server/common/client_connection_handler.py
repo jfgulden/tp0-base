@@ -67,9 +67,6 @@ class ClientConnectionHandler:
         return bets
 
 
-
-        
-
     def __receive_bets(self, bets_num):
         bets = []
         for i in range(bets_num):
@@ -112,7 +109,6 @@ class ClientConnectionHandler:
         while total_sent < len(data):
             sent = self.client_sock.send(data[total_sent:])
             if sent == 0:
-                logging.error("action: send_message | result: fail | error: Socket connection broken")
                 raise RuntimeError("Socket connection broken")
             total_sent += sent
 
@@ -132,7 +128,7 @@ class ClientConnectionHandler:
         winners_buff = bytes([len(encoded_winners)]) + encoded_winners
         #I assume that len(winners) is less than 256
         self.__send_all(winners_buff)
-        logging.info(f'action: enviar_ganadores | result: success | cantidad: {len(winners)}')
+        logging.info(f'action: enviar_ganadores a agencia {agency}| result: success | cantidad: {len(winners)}')
 
     
 

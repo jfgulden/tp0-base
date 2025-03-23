@@ -168,18 +168,13 @@ func (c *Client) StartClient() {
 	csvReader := csv.NewReader(file)
 
 	c.createClientSocket()
-	
+
 	c.sendAgencyID()
 	c.sendBetsAndReceiveAck(csvReader)
 	
 
 	winners, err := c.receiveWinners()
 	if err != nil {
-		c.StopClient()
-		return
-	}
-	msg, err := c.readMsg(len(SERVER_ACK + "\n"))
-	if err != nil || msg != SERVER_ACK+"\n" {
 		c.StopClient()
 		return
 	}

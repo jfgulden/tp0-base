@@ -37,6 +37,9 @@ class Server:
                 process = Process(target=ClientConnectionHandler.New, args=(self.client_sock, addr, bests_file_lock, barrier))
                 process.start()
                 self.processes.append(process)
+                
+                if len(self.processes) == CLIENTS_NUM:
+                    break
 
             except OSError as e:
                 logging.error(f"action: accept_connections | result: fail | error: {e}")
@@ -44,7 +47,7 @@ class Server:
                     self.client_sock.close()
                 self._server_socket.close()     
 
-        logging.info("JOINEO TODOS LOS PROCESOS")
+        
         for process in self.processes:
             process.join()     
 
