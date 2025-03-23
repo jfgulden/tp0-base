@@ -168,9 +168,10 @@ func (c *Client) StartClient() {
 	csvReader := csv.NewReader(file)
 
 	c.createClientSocket()
-
-	c.sendBetsAndReceiveAck(csvReader)
+	
 	c.sendAgencyID()
+	c.sendBetsAndReceiveAck(csvReader)
+	
 
 	winners, err := c.receiveWinners()
 	if err != nil {

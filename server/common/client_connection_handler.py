@@ -25,6 +25,8 @@ class ClientConnectionHandler:
     def handle_client_connection(self):
         try:
             addr = self.client_sock.getpeername()
+            msg_agency = self.__read_all(AGENCY_NUM_BYTES)
+            agency = int(msg_agency.decode('utf-8'))
             while self.client_sock:
                 msg_header = self.__read_all(EOF_MSG_SIZE)
                 if not msg_header:
@@ -45,7 +47,7 @@ class ClientConnectionHandler:
 
                 if eof_flag == EOF_MSG:
                     self.barrier.wait_for_all()
-                    self.handle_agency_winners()
+                    self.send_winners(agency)
                     break
                     
 
@@ -64,11 +66,9 @@ class ClientConnectionHandler:
             return None
         return bets
 
-    def handle_agency_winners(self):
-        msg_agency = self.__read_all(AGENCY_NUM_BYTES)
-        agency = int(msg_agency.decode('utf-8'))
-        logging.info(f'action: recibir_agencia | result: success | agencia: {agency}')
-        self.send_winners(agency)
+
+
+        
 
     def __receive_bets(self, bets_num):
         bets = []
@@ -77,6 +77,7 @@ class ClientConnectionHandler:
             if not msg_header_bet:
                 logging.info(f'action: apuesta_recibida | result: fail | cantidad: {len(bets)}')
                 return None
+            
             msg_len_bet = int.from_bytes(msg_header_bet, byteorder='big')
             encoded_msg = self.__read_all(msg_len_bet)
             if not encoded_msg:
@@ -121,13 +122,10 @@ class ClientConnectionHandler:
         """
         with self.bets_file_lock:
             winners = search_lottery_winners(agency)
-      
 
         if not winners:
             self.__send_all(bytes([0]))
             logging.info(f'action: enviar_ganadores a agencia {agency}| result: success | cantidad: {0}')
-            self.__send_all((SERVER_ANSWER + '\n').encode('utf-8'))
-            logging.info(f'action: send_ack | result: success | ip: {self.client_sock.getpeername()[0]} | msg: {SERVER_ANSWER}')
             return
         
         encoded_winners = serialize_winners(winners)
@@ -135,8 +133,6 @@ class ClientConnectionHandler:
         #I assume that len(winners) is less than 256
         self.__send_all(winners_buff)
         logging.info(f'action: enviar_ganadores | result: success | cantidad: {len(winners)}')
-        self.__send_all((SERVER_ANSWER + '\n').encode('utf-8'))
-        logging.info(f'action: send_ack | result: success | ip: {self.client_sock.getpeername()[0]} | msg: {SERVER_ANSWER}')
 
     
 
