@@ -115,6 +115,8 @@ class Server:
             self.client_sock_running = client_sock
             winners = winners_per_agency[agency] if agency in winners_per_agency else []
             self.__send_winners_to_agency(winners)
+            
+        logging.info("action: sorteo | result: success")
 
     def __send_winners_to_agency(self, winners):
         
