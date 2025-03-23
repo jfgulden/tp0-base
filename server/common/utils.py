@@ -5,7 +5,7 @@ import logging
 """ Bets storage location. """
 STORAGE_FILEPATH = "./bets.csv"
 """ Simulated winner number in the lottery contest. """
-LOTTERY_WINNER_NUMBER = 4540
+LOTTERY_WINNER_NUMBER = 7574
 BET_SEPARATOR = ','
 
 """ A lottery bet registry. """
