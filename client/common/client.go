@@ -133,7 +133,10 @@ func (c *Client) receiveWinners() ([]string, error) {
 	}
 		
 	winners_size := int(msg[0])
-	log.Infof("winners_size: %d", winners_size)
+
+	if winners_size == 0 {
+		return winners, nil
+	}
 	winners_buf, err := c.readMsg(winners_size)
 	if err != nil {
 		log.Errorf("action: receive_winners | result: fail | client_id: %v | error: %v", c.config.ID, err)
