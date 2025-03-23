@@ -2,6 +2,7 @@ import socket
 import logging
 import signal
 import time
+import select
 from common.utils import Bet
 from common.utils import store_bets
 from common.utils import search_winner_bets
@@ -36,23 +37,28 @@ class Server:
 
         while self._is_running:
             try:
+                
+                new_conn, _, _ = select.select([self._server_socket], [], [], 5) # 5 seconds timeout: wait until ready for reading 
+
+                if not new_conn:
+                    logging.info("action: sorteo | result: in_progress")
+                    self.__handle_winners_sending()
+                    self._is_running = False
+                    self._server_socket.shutdown(socket.SHUT_RDWR)
+                    self._server_socket.close()
+                    break 
+                
                 self.client_sock_running = self.__accept_new_connection()
                 if self.client_sock_running is None or not self._is_running:
                     break
 
                 self.__handle_client_connection()
-                if len(self.clients_socks) == CLIENTS_NUM:
-                    self.__handle_winners_sending()
-                    self._is_running = False
-                    self._server_socket.shutdown(socket.SHUT_RDWR)
-                    self._server_socket.close()  
 
             except OSError as e:
                 logging.error(f"action: receive_message | result: fail | error: {e}")
                 if self.client_sock_running is not None:
                     self.client_sock_running.close()
-                    
-                self._server_socket.close()        
+                self._server_socket.close()
 
 
     def handle_sigterm(self, signum, frame):
