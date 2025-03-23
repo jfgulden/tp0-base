@@ -211,7 +211,7 @@ func (c *Client) sendBetsAndReceiveAck(csvReader *csv.Reader) {
 		if len(batchToSend) == len(bets) {
 			break
 		}
-		bets = bets[len(batchToSend)-1:]
+		bets = bets[len(batchToSend):]
 
 		time.Sleep(c.config.LoopPeriod)
 
