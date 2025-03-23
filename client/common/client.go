@@ -183,7 +183,7 @@ func (c *Client) StartClient() {
 		return
 	}
 	log.Infof("action: consulta_ganadores | result: success | cant_ganadores: %v", len(winners))
-
+	log.Infof("action: consulta_ganadores | result: success | ganadores: %v", winners)
 	c.conn.Close()
 	c.conn_closed = true
 }
