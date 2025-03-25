@@ -134,6 +134,9 @@ func (c *Client) receiveWinners() ([]string, error) {
 	}
 		
 	winners_size := int(msg[0])
+	if winners_size == 0 {
+		return winners, nil
+	}
 	
 	winners_buf, err := c.readMsg(winners_size)
 	if err != nil {
