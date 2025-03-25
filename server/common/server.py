@@ -5,7 +5,6 @@ from multiprocessing import Lock, Process, Value
 from common.client_connection_handler import ClientConnectionHandler
 from common.sync_barrier import SyncBarrier
 
-CLIENTS_NUM = 5
 
 class Server:
     def __init__(self, port, listen_backlog, agencies_num):
@@ -27,7 +26,7 @@ class Server:
         finishes, servers starts to accept new connections again
         """
         bests_file_lock = Lock()
-        barrier = SyncBarrier(CLIENTS_NUM)
+        barrier = SyncBarrier(self.agencies_num)
 
         while self._is_running:
             try:
