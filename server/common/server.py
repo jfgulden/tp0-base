@@ -1,8 +1,7 @@
 import socket
 import logging
-import signal
+import os
 import time
-import select
 from common.utils import Bet
 from common.utils import store_bets
 from common.utils import search_winner_bets
@@ -14,10 +13,9 @@ SERVER_ANSWER = 'ACK'
 EOF_MSG = 1
 EOF_MSG_SIZE = 1
 WINNERS_NUM_BYTES = 1
-CLIENTS_NUM = 5
 
 class Server:
-    def __init__(self, port, listen_backlog):
+    def __init__(self, port, listen_backlog, agencies_num):
         # Initialize server socket
         self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._server_socket.bind(('', port))
@@ -25,6 +23,7 @@ class Server:
         self._is_running = True
         self.client_sock_running = None
         self.clients_socks = {}
+        self.agencies_num = agencies_num
 
     def run(self):
         """
@@ -37,22 +36,19 @@ class Server:
 
         while self._is_running:
             try:
-                
-                new_conn, _, _ = select.select([self._server_socket], [], [], 5) # 5 seconds timeout: wait until ready for reading 
+                self.client_sock_running = self.__accept_new_connection()
+                if self.client_sock_running is None or not self._is_running:
+                    break
 
-                if not new_conn:
+                self.__handle_client_connection()
+                
+                if len(self.clients_socks) == self.agencies_num:
                     logging.info("action: sorteo | result: in_progress")
                     self.__handle_winners_sending()
                     self._is_running = False
                     self._server_socket.shutdown(socket.SHUT_RDWR)
                     self._server_socket.close()
                     break 
-                
-                self.client_sock_running = self.__accept_new_connection()
-                if self.client_sock_running is None or not self._is_running:
-                    break
-
-                self.__handle_client_connection()
 
             except OSError as e:
                 logging.error(f"action: receive_message | result: fail | error: {e}")
