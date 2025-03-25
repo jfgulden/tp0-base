@@ -7,6 +7,7 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - LOGGING_LEVEL=DEBUG
+      - AGENCIES_NUM=5
     networks:
       - testing_net
     volumes:
