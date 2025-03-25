@@ -46,25 +46,10 @@ Para el servidor, se utilizó el paquete `signal`, que permite capturar la seña
 
 handleSigterm en el servidor:
 
-```python
-  def handle_sigterm(self, signum, frame):
-      if self.client_sock is not None:
-          try:
-              self.client_sock.shutdown(socket.SHUT_RDWR)
-              self.client_sock.close()
-          except Exception as e:
-              logging.error(f"action: client_socket_close | result: error | error: {e}")
-
-      self._is_running = False
-      self._server_socket.shutdown(socket.SHUT_RDWR)
-      self._server_socket.close()
-      logging.info("action: handle_sigterm | result: success")
-      time.sleep(1)
-
-```
-
 ### Ejercicio 5
 
+Los datos de las apuestas se reciben como variables de entorno, las cuales están definidas en el docker-compose.
+Para enviar cada apuesta, se definió el siguiente protocolo: 
 ```mermaid
 sequenceDiagram
     participant client
@@ -77,6 +62,8 @@ sequenceDiagram
     deactivate server
 
 ```
+El cliente envía la apuesta en un mensaje que contiene un header de 4 bytes en el cual se define la longitud del payload, y un payload con una cantidad de bytes determinada por la variable `maxAmount`, definida en el archivo de configuración (máximo 8KB). Este header es útil para poder saber que cantidad de bytes tendrá que leer el server por cada mensaje.
+El payload está compuesto por todos los elementos de la apuesta separados por ',' (coma), por lo que se envían encodeados como UTF-8.
 
 ### Ejercicio 6
 
