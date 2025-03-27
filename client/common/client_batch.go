@@ -56,11 +56,8 @@ func (c *Client) prepareBatchForSending(bets []Bet) ([]Bet, []byte, error) {
 			return nil, nil, fmt.Errorf("batch size too small to continue")
 		}
 		batch = chunkBets(bets, batchSize)
-		if len(batch) == len(bets) {
-			buffer, err = c.serialize_batch(batch, EOF_MSG_TRUE)
-		} else {	
-			buffer, err = c.serialize_batch(batch, EOF_MSG_FALSE)
-		}
+		buffer, err = c.serialize_batch(batch, EOF_MSG_FALSE)
+		
 		if err != nil {
 			return batch, nil, err
 		}

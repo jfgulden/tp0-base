@@ -49,7 +49,8 @@ handleSigterm en el servidor:
 ### Ejercicio 5
 
 Los datos de las apuestas se reciben como variables de entorno, las cuales están definidas en el docker-compose.
-Para enviar cada apuesta, se definió el siguiente protocolo: 
+Para enviar cada apuesta, se definió el siguiente protocolo de aplicación y se utilizó TCP como protocolo de transporte, ya que necesitamos asegurar que se envíen correctamente todos los datos de la apuesta.
+
 ```mermaid
 sequenceDiagram
     participant client
@@ -62,35 +63,44 @@ sequenceDiagram
     deactivate server
 
 ```
-El cliente envía la apuesta en un mensaje que contiene un header de 4 bytes en el cual se define la longitud del payload, y un payload con una cantidad de bytes determinada por la variable `maxAmount`, definida en el archivo de configuración (máximo 8KB). Este header es útil para poder saber que cantidad de bytes tendrá que leer el server por cada mensaje.
-El payload está compuesto por todos los elementos de la apuesta separados por ',' (coma), por lo que se envían encodeados como UTF-8.
+
+El cliente envía la apuesta en un mensaje que contiene un header de 4 bytes, en el cual se define la longitud de la apuesta en bytes. Este header es útil para poder saber que cantidad de bytes tendrá que leer el server por cada mensaje.
+El payload está compuesto por todos los elementos de la apuesta separados por ',' (coma), por lo que se serializan encodeados y se parsean como UTF-8, y tiene esta estructura:
+
+```
+<agency>,<first_name>,<last_name>,<identification>,<birthdate>,<number>
+```
+
+La lógica de las apuestas se encuentra en el archivo bet.go, permitiendo separar las responsabilidades entre el modelo de dominio y la capa de comunicación.
+Una vez que el cliente envía la apuesta, espera la confirmación del servidor (ACK) para cerrar su conexión con el servidor y el archivo de apuestas.
 
 ### Ejercicio 6
 
-- Cliente
+Para enviar las apuestas de a chunks, se toma la cantidad de apuestas a enviar de la variable `maxAmount`, que se encuentra definida en el archivo `config.yaml`. Si el tamaño total de las apuestas supera los 8KB, se reducirá en 3/4 la cantidad de apuestas a enviar, hasta que el tamaño total de las apuestas no supere los 8KB.
+A fin de no leer el archivo completo en memoria, se estableció una cantidad máxima de apuestas leídas en cada iteración, de aproximadamente 8KB.
 
-  - Lee el archivo de apuestas de a chunks de tamaño fijo, de 8kb.
-  - Envia el chunk de apuestas al servidor, que se envía como un mensaje cuyo header contiene el tamaño del payload.
-  - Espera la confirmación del servidor (ACK) para enviar el siguiente chunk.
-  - Cuando se envían todas las apuestas, se cierra la conexión.
+De manera similar a lo que se hizo en el ejercicio 5, se definió un protocolo de aplicación para enviar los chunks de apuestas, que se envían como mensajes cuyo header contiene 2 bytes para el tamaño en bytes del payload. Dicho payload contiene los mensajes de las apuestas definidos en el ejercicio 5 (2 bytes para la longitud + payload).
 
-- Servidor
-  - Recibe el chunk de apuestas del cliente, que se recibe como un mensaje cuyo header contiene el tamaño del payload.
-  - Procesa el chunk de apuestas y lo almacena en una lista de apuestas, que luego se guarda en un archivo bet.csv.
-  - Confirma la recepción del chunk de apuestas al cliente (ACK).
+Por cada chunk de apuestas enviado, el cliente espera la confirmación del servidor (ACK) para enviar el siguiente chunk. Una vez que se envían todas las apuestas, se cierra la conexión con el servidor.
+
+Por otro lado, el servidor procesa el chunk de apuestas y lo almacena en una lista de apuestas, que luego se guarda en un archivo bet.csv.
 
 ### Ejercicio 7
 
-- Cliente
+Para notificar al servidor que todas las apuestas han sido enviadas, se agregó un byte adicional al inicio del mensaje en el ejercicio 6. Este byte funciona como un booleano e indica si el mensaje contiene las últimas apuestas (1) o no (0). De este modo, el servidor puede determinar cuándo ha recibido todas las apuestas de un cliente, dejar de esperar nuevos mensajes y procesar las apuestas de otros clientes.
 
-  - Lee el archivo de apuestas de a chunks de tamaño fijo, de 8kb.
-  - Envia el chunk de apuestas al servidor, que se envía como un mensaje cuyo header de un byte contiene el tamaño del payload.
-  - Espera la confirmación del servidor (ACK) para enviar el siguiente chunk.
-  - Cuando se envían todas las apuestas, queda esperando la respuesta del servidor.
-  - Recibe los dni de las personas que ganaron la apuesta de la agencia como un mensaje cuyo header de un byte contiene el tamaño del payload.
+Una vez que el servidor recibe todas las apuestas de todos los clientes, procede con el sorteo, buscando en el archivo de apuestas las apuestas ganadoras, y enviando los dni de las personas ganadoras a cada cliente. Finalmente, deja de aceptar nuevas conexiones y cierra el socket.
 
-- Servidor
-  - Recibe el chunk de apuestas del cliente, que se recibe como un mensaje cuyo header contiene el tamaño del payload.
-  - Procesa el chunk de apuestas y lo almacena en una lista de apuestas, que luego se guarda en un archivo bet.csv.
-  - Confirma la recepción del chunk de apuestas al cliente (ACK).
-  - Busca en el archivo de apuestas las apuestas ganadoras de la agencia y las envía los dni de las personas correspondientes al cliente.
+Al recibir los dni de las personas que ganaron la apuesta de la agencia, el cliente cierra la conexión con el servidor y el archivo de apuestas.
+
+### Ejercicio 8
+
+Dado que Python tiene una limitación conocida como Global Interpreter Lock (GIL), que impide la ejecución verdaderamente paralela de múltiples threads en tareas intensivas en CPU decidí utilizar multiprocessing en lugar de multithreading. Cada proceso corre en su propio intérprete de Python, lo que permite una ejecución en paralelo sin las restricciones del GIL, permitiendo aprovechar mejor los múltiples núcleos de la CPU.
+
+Por cada conexión de un cliente, se crea un proceso hijo que funciona como un manejador de la conexión, y se encarga de recibir las apuestas del cliente y procesarlas, de manera similar al ejercicio anterior. Para poder sincronizar a los procesos hijos a fin de esperar a que todos los clientes hayan enviado sus apuestas, se utilizó una Barrera de sincronización, cuyo contador se decrementa cada vez que un cliente envía todas sus apuestas. Es decir, cuando el servidor recibe un mensaje con el primer bit en 1, tal como se explicó en el ejercicio anterior. Una vez que el contador llega a 0, todos los procesos hijos pueden comenzar con el sorteo. Esto es, cada proceso busca en el archivo de apuestas las apuestas ganadoras de la agencia respectiva a la que le hace handle, y envía los dni de los ganadores.
+
+Como todos los procesos hijos tienen que acceder al archivo de apuestas, se utilizó un lock para evitar condiciones de carrera.
+
+Al recibir los dni de las personas que ganaron la apuesta de la agencia, el cliente cierra la conexión con el servidor y el archivo de apuestas.
+
+Finalmente, el proceso padre cierra el socket y se encarga de hacer join a todos los procesos hijos para esperar a que terminen de ejecutarse.
