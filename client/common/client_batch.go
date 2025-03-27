@@ -7,7 +7,7 @@ import (
 )
 
 
-func (c *Client) serialize_batch(bets []Bet, eof_flag uint8) ([]byte, error) {
+func (c *Client) serialize_batch(bets []Bet, eof_flag bool) ([]byte, error) {
 	var buffer bytes.Buffer
 	for _, bet := range bets {
 		betBuffer, err := bet.serialize()
@@ -34,16 +34,11 @@ func (c *Client) serialize_batch(bets []Bet, eof_flag uint8) ([]byte, error) {
 	return finalBuffer.Bytes(), nil
 }
 
-func (c *Client) prepareBatchForSending(bets []Bet) ([]Bet, []byte, error) {
+func (c *Client) prepareBatchForSending(bets []Bet, eof_flag bool) ([]Bet, []byte, error) {
 
 	batch := chunkBets(bets, c.config.BatchMaxAmount)
 
-	buffer, err := c.serialize_batch(batch, func() uint8 {
-		if len(batch) == len(bets) {
-			return EOF_MSG_TRUE
-		}
-		return EOF_MSG_FALSE
-	}())
+	buffer, err := c.serialize_batch(batch, eof_flag)
 		
 
 	if err != nil {
@@ -56,7 +51,7 @@ func (c *Client) prepareBatchForSending(bets []Bet) ([]Bet, []byte, error) {
 			return nil, nil, fmt.Errorf("batch size too small to continue")
 		}
 		batch = chunkBets(bets, batchSize)
-		buffer, err = c.serialize_batch(batch, EOF_MSG_FALSE)
+		buffer, err = c.serialize_batch(batch, eof_flag)
 		
 		if err != nil {
 			return batch, nil, err
@@ -69,7 +64,6 @@ func chunkBets(bets []Bet, maxAmount int) []Bet {
 	batches := make([]Bet, 0, maxAmount)
 
 	if len(bets) <= maxAmount {
-
 		return bets
 	}
 	for i := 0; i < maxAmount; i++ {

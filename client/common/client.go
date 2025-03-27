@@ -187,10 +187,10 @@ func (c *Client) StartClient() {
 }
 
 func (c *Client) sendBetsAndReceiveAck(csvReader *csv.Reader) {
-	batch := c.readBetsFromFile(csvReader, c.config.BatchMaxAmount)
+	batch, eof_flag := c.readBetsFromFile(csvReader, c.config.BatchMaxAmount)
 	bets := batch
 	for len(bets) > 0 {
-		batchToSend, bytesToSend, err := c.prepareBatchForSending(bets)
+		batchToSend, bytesToSend, err := c.prepareBatchForSending(bets, eof_flag)
 		if err != nil || bytesToSend == nil {
 			log.Errorf("action: serialize_batch | result: fail | client_id: %v | error: %v", c.config.ID, err)
 			return
@@ -213,8 +213,15 @@ func (c *Client) sendBetsAndReceiveAck(csvReader *csv.Reader) {
 
 		time.Sleep(c.config.LoopPeriod)
 
-		batch = c.readBetsFromFile(csvReader, c.config.BatchMaxAmount)
-		bets = append(bets, batch...)
+		if !eof_flag {
+			batch, eof_flag = c.readBetsFromFile(csvReader, c.config.BatchMaxAmount)
+
+			if batch == nil {
+				log.Errorf("action: read_csv | result: fail | client_id: %v", c.config.ID)
+				return
+			}
+			bets = append(bets, batch...)
+		}
 	}
 }
 

@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func (c *Client) readBetsFromFile(csvReader *csv.Reader, maxAmount int) []Bet {
+func (c *Client) readBetsFromFile(csvReader *csv.Reader, maxAmount int) ([]Bet, bool) {
 	totalBytes := 0
 	var bets []Bet
 	
@@ -14,10 +14,10 @@ func (c *Client) readBetsFromFile(csvReader *csv.Reader, maxAmount int) []Bet {
 		record, err := csvReader.Read()
 		if err != nil {
 			if err == io.EOF {
-				break
+				return bets, true
 			}
 			log.Errorf("action: read_csv | result: fail | client_id: %v | error: %v", c.config.ID, err)
-			return nil
+			return nil, false
 		}
 
 		recordStr := strings.Join(record, ",") + "\n"
@@ -28,10 +28,12 @@ func (c *Client) readBetsFromFile(csvReader *csv.Reader, maxAmount int) []Bet {
 		bet := NewBet(c.config.ID, record[0], record[1], record[2], record[3], record[4])
 		bets = append(bets, *bet)
 		
-		if totalBytes >= BATCH_MAX_AMOUNT_BYTES {
+		if totalBytes + recordBytes >= BATCH_MAX_AMOUNT_BYTES {
+			// Si leyendo otra línea supera los 8KB, se termina el batch
+			// Se considera que la proxima linea tendra un tamaño similar, por eso se usa recordBytes
 			break
 		}
 		
 	}
-	return bets
+	return bets, false
 }
