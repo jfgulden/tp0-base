@@ -4,29 +4,19 @@
 
 ### Ejercicio 1
 
-Para ejecutar el ejercicio 1, se debe correr el siguiente comando:
+Para generar el archivo de docker-compose con una cantidad determinada de clientes, se debe correr el siguiente comando:
 
 ```bash
 bash generar-compose.sh <docker-compose-dev.yaml> <clients_num>
 ```
 
-Donde `<docker-compose-dev.yaml>` es el archivo de configuración de docker-compose y `<clients_num>` es la cantidad de clientes que se quieren crear.
-
 ### Ejercicio 2
 
-Para cumplir con el ejercicio 2, se modificó el archivo docker compose para lograr que realizar cambios en el archivo de configuración no requiera un nuevo build de las imágenes de Docker para que los mismos sean efectivos. Para esto se agregaron volúmenes a los servicios de cliente y servidor, de la siguiente manera:
+Para evitar tener que hacer un nuevo build de las imágenes de Docker cada vez que se quiera cambiar la configuración del cliente o del servidor, se modificó el archivo docker-compose, así como también el script `generar-compose.sh`. Para esto se agregaron bind mounts a los servicios de cliente y servidor.
 
-```yaml
-volumes:
-    - ./client/config.yaml:/app/config.yaml
+Al mapear el archivo de configuración local (config.yaml o config.ini) con un archivo dentro del contenedor, los cambios en el archivo local se reflejan inmediatamente dentro del contenedor sin tener que hacer un nuevo build.
 
-volumes:
-    - ./server/config.ini:/app/config.ini
-```
-
-Al mapear el archivo de configuración local (config.yaml o config.ini) con un archivo dentro del contenedor, los cambios en el archivo local se reflejan inmediatamente dentro del contenedor sin tener que hacer un nuevo build. Esto evita tener que hacer un nuevo build de las imágenes de Docker cada vez que se quiera cambiar la configuración.
-
-A su vez, se añadió un archivo .dockerignore con el siguiente contenido para evitar que se copien los archivos de configuración al contenedor:
+A su vez, se añadió un archivo `.dockerignore` con el siguiente contenido para evitar que se copien los archivos de configuración al contenedor:
 
 ```
 client/config.yaml
@@ -35,14 +25,14 @@ server/config.ini
 
 ### Ejercicio 3
 
-Para el ejercicio 3, se creó un script de bash validar-echo-server.sh que permite verificar el correcto funcionamiento del servidor utilizando el comando netcat para interactuar con el mismo.
+Para verificar el correcto funcionamiento del servidor, se creó un script de bash `validar-echo-server.sh` que utiliza el comando netcat para interactuar con el mismo.
 Para poder ejecutar el script, se debe correr el siguiente comando:
 
 ```bash
-./validar-echo-sever.sh
+./validar-echo-server.sh
 ```
 
-Tener en cuenta que el servidor debe estar corriendo para poder realizar la validación, por lo que se debe levantar el contenedor del servidor antes de ejecutar el script. Para esto, correr el siguiente comando previamente:
+Es importante tener en cuenta que el servidor debe estar corriendo para poder realizar la validación, por lo que se debe levantar el contenedor del servidor antes de ejecutar el script. Para esto, correr el siguiente comando previamente:
 
 ```bash
 make docker-compose-up
@@ -50,30 +40,10 @@ make docker-compose-up
 
 ### Ejercicio 4
 
-En el ejercicio 4, se incluyeron dos funciones, una del lado del cliente y otra del lado del servidor, que permiten terminar la conexión entre ambos de forma segura al recibir la señal SIGTERM.
+Para poder hacer un graceful shutdown, del lado del cliente, se utilizó el paquete `os/signal`, que permite capturar la señal SIGTERM y verificar que el contexto del cliente no haya sido cancelado. En caso de que haya sido cancelado, se cierra la conexión con el servidor.
 
-Para el cliente y el servidor se creo la funcion handleSigterm. En el cliente, maneja la señal de terminación y detiene el bucle del cliente. En el servidor, maneja la señal de terminación y cierra el socket del servidor.
+Para el servidor, se utilizó el paquete `signal`, que permite capturar la señal SIGTERM y cerrar la conexión con el cliente. En caso de recibir la señal SIGTERM, se cierra la conexión con el cliente y se cierra el socket del servidor.
 
-handleSigterm en el cliente:
+En el cliente, se cambia el uso de `time.Sleep` por un `select` que monitorea tanto el contexto como un `time.After`. De este modo, si el contexto es cancelado, el `select` ejecuta el `case` correspondiente y finaliza el proceso de manera correcta. En caso contrario, el cliente sigue esperando a que se complete el tiempo del `sleep` antes de volver a ejecutar el bucle.
 
-```go
-func handleSigterm(client *common.Client) {
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGTERM)
-	go func() {
-		sig := <-sigs
-		client.StopClientLoop()
-		os.Exit(0)
-	}()
-}
-```
-
-handleSigterm en el servidor:
-
-```python
-    def handle_sigterm(self, signum, frame):
-        self._is_running = False
-        self._server_socket.shutdown(socket.SHUT_RDWR)
-        self._server_socket.close()
-        time.sleep(1)
-```
+Mientras tanto, del lado del servidor, si se recibe una señal SIGTERM, se cierra la conexión con el cliente si está activa y se cierra el socket del servidor.
