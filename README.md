@@ -14,7 +14,7 @@ bash generar-compose.sh <docker-compose-dev.yaml> <clients_num>
 
 Para evitar tener que hacer un nuevo build de las imágenes de Docker cada vez que se quiera cambiar la configuración del cliente o del servidor, se modificó el archivo docker-compose, así como también el script `generar-compose.sh`. Para esto se agregaron bind mounts a los servicios de cliente y servidor.
 
-Al mapear el archivo de configuración local (config.yaml o config.ini) con un archivo dentro del contenedor, los cambios en el archivo local se reflejan inmediatamente dentro del contenedor sin tener que hacer un nuevo build. Esto evita tener que hacer un nuevo build de las imágenes de Docker cada vez que se quiera cambiar la configuración.
+Al mapear el archivo de configuración local (config.yaml o config.ini) con un archivo dentro del contenedor, los cambios en el archivo local se reflejan inmediatamente dentro del contenedor sin tener que hacer un nuevo build.
 
 A su vez, se añadió un archivo `.dockerignore` con el siguiente contenido para evitar que se copien los archivos de configuración al contenedor:
 
@@ -29,7 +29,7 @@ Para verificar el correcto funcionamiento del servidor, se creó un script de ba
 Para poder ejecutar el script, se debe correr el siguiente comando:
 
 ```bash
-./validar-echo-sever.sh
+./validar-echo-server.sh
 ```
 
 Es importante tener en cuenta que el servidor debe estar corriendo para poder realizar la validación, por lo que se debe levantar el contenedor del servidor antes de ejecutar el script. Para esto, correr el siguiente comando previamente:
@@ -44,7 +44,9 @@ Para poder hacer un graceful shutdown, del lado del cliente, se utilizó el paqu
 
 Para el servidor, se utilizó el paquete `signal`, que permite capturar la señal SIGTERM y cerrar la conexión con el cliente. En caso de recibir la señal SIGTERM, se cierra la conexión con el cliente y se cierra el socket del servidor.
 
-handleSigterm en el servidor:
+En el cliente, se cambia el uso de `time.Sleep` por un `select` que monitorea tanto el contexto como un `time.After`. De este modo, si el contexto es cancelado, el `select` ejecuta el `case` correspondiente y finaliza el proceso de manera correcta. En caso contrario, el cliente sigue esperando a que se complete el tiempo del `sleep` antes de volver a ejecutar el bucle.
+
+Mientras tanto, del lado del servidor, si se recibe una señal SIGTERM, se cierra la conexión con el cliente si está activa y se cierra el socket del servidor.
 
 ### Ejercicio 5
 
@@ -64,28 +66,29 @@ sequenceDiagram
 
 ```
 
-El cliente envía la apuesta en un mensaje que contiene un header de 4 bytes, en el cual se define la longitud de la apuesta en bytes. Este header es útil para poder saber que cantidad de bytes tendrá que leer el server por cada mensaje.
-El payload está compuesto por todos los elementos de la apuesta separados por ',' (coma), por lo que se serializan encodeados y se parsean como UTF-8, y tiene esta estructura:
+El cliente envía la apuesta en un mensaje que contiene un header de 4 bytes, en el cual se define la longitud de la apuesta en bytes. Este header es útil para poder saber que cantidad de bytes tendrá que leer el server por cada mensaje, cuya estructura se define a continuación:
 
 ```
-<agency>,<first_name>,<last_name>,<identification>,<birthdate>,<number>
+<bytes_length><agency>,<first_name>,<last_name>,<identification>,<birthdate>,<number>
 ```
 
-La lógica de las apuestas se encuentra en el archivo bet.go, permitiendo separar las responsabilidades entre el modelo de dominio y la capa de comunicación.
+Donde todos los elementos de la apuesta separados por ',' (coma)
+
+La lógica de las apuestas se encuentra en el archivo /clients/common/bet.go, permitiendo separar las responsabilidades entre el modelo de dominio y la capa de comunicación.
 Una vez que el cliente envía la apuesta, espera la confirmación del servidor (ACK) para cerrar su conexión con el servidor y el archivo de apuestas.
 
 ### Ejercicio 6
 
 Para enviar las apuestas de a chunks, se toma la cantidad de apuestas a enviar de la variable `maxAmount`, que se encuentra definida en el archivo `config.yaml`. Si el tamaño total de las apuestas supera los 8KB, se reducirá en 3/4 la cantidad de apuestas a enviar, hasta que el tamaño total de las apuestas no supere los 8KB.
-A fin de no leer el archivo completo en memoria, se estableció una cantidad máxima de apuestas leídas en cada iteración, de aproximadamente 8KB.
+Con el propósito de no leer el archivo completo en memoria, se estableció una cantidad máxima de apuestas leídas en cada iteración, de aproximadamente 8KB.
 
-De manera similar a lo que se hizo en el ejercicio 5, se definió un protocolo de aplicación para enviar los chunks de apuestas, que se envían como mensajes cuyo header contiene parse bytes para indicar la cantidad de apuestas que tendrá el payload. Dicho payload contiene los mensajes de las apuestas definidos en el ejercicio 5 (4 bytes para la longitud + payload). Es decir, si se envía un chunk con 3 apuestas, el payload tendrá la siguiente estructura:
+De manera similar a lo que se hizo en el ejercicio 5, se definió un protocolo de aplicación para enviar los chunks de apuestas, que se envían como mensajes cuyo header contiene un byte para indicar la cantidad de apuestas que tendrá el payload. Dicho payload contiene los mensajes de las apuestas definidos en el ejercicio 5 (4 bytes para la longitud + payload). Es decir, si se envía un chunk con 3 apuestas, el payload tendrá la siguiente estructura:
 
 ```
 <bets_num><bet1><bet2><bet3>
 ```
 
-Donde `bets_num` valdría 3 en el ejemplo y cada apuesta tiene la siguiente estructura:
+Donde `bets_num` ocupa un byte y valdría 3 en el ejemplo, y cada apuesta tiene la siguiente estructura:
 
 ```
 <bytes_length1><agency1>,<first_name1>,<last_name1>,<identification1>,<birthdate1>,<number1>
@@ -99,13 +102,20 @@ Por otro lado, el servidor procesa el chunk de apuestas y lo almacena en una lis
 
 ### Ejercicio 7
 
-Para notificar al servidor que todas las apuestas han sido enviadas, se agregó un byte adicional al inicio del mensaje en el ejercicio 6. Este byte funciona como un booleano e indica si el mensaje contiene las últimas apuestas (1) o no (0). De este modo, el servidor puede determinar cuándo ha recibido todas las apuestas de un cliente, dejar de esperar nuevos mensajes y procesar las apuestas de otros clientes.
+Para notificar al servidor que todas las apuestas han sido enviadas, se agregó un byte adicional al inicio del mensaje mostrado previamente en el Ejercicio 6. Este byte funciona como un booleano e indica si el mensaje contiene las últimas apuestas (1) o no (0). De este modo, el servidor puede determinar cuándo ha recibido todas las apuestas de un cliente, dejar de esperar nuevos mensajes y procesar las apuestas de otros clientes.
 
-Una vez que el servidor recibe todas las apuestas de todos los clientes, procede con el sorteo, buscando en el archivo de apuestas las apuestas ganadoras, y enviando los dni de las personas ganadoras a cada cliente. Finalmente, deja de aceptar nuevas conexiones y cierra el socket.
+Una vez que el servidor recibe todas las apuestas de todos los clientes, procede a realizar el sorteo, buscando en el archivo de apuestas las apuestas ganadoras, y enviando los dni de las personas ganadoras a cada cliente.
+Para esto, se definió un nuevo mensaje que envía el servidor al cliente que contiene los dni de las personas ganadoras. Este mensaje contiene un byte para la cantidad de ganadores, y un payload con los dni de los ganadores. La estructura del mensaje es la siguiente:
 
-Al recibir los dni de las personas que ganaron la apuesta de la agencia, el cliente cierra la conexión con el servidor y el archivo de apuestas.
+```
+<winners_num><winner1><winner2><winner3>...
+```
 
-Si se envía un chunk con 3 apuestas, el payload tendrá la siguiente estructura:
+La decisión de tener un solo byte para la cantidad de ganadores se tomó asumiendo que no habrá más de 255 ganadores por agencia.
+
+Al recibir los dni de las personas que ganaron la apuesta, el cliente cierra la conexión con el servidor y el archivo de apuestas.
+
+Si se envía un chunk con 3 apuestas, el mensaje tendrá la siguiente estructura:
 
 ```
 <eof_flag><bets_num><bet1><bet2><bet3>
@@ -117,9 +127,11 @@ Donde `eof_flag` es un byte que indica si el mensaje contiene las últimas apues
 
 Dado que Python tiene una limitación conocida como Global Interpreter Lock (GIL), que impide la ejecución verdaderamente paralela de múltiples threads en tareas intensivas en CPU decidí utilizar multiprocessing en lugar de multithreading. Cada proceso corre en su propio intérprete de Python, lo que permite una ejecución en paralelo sin las restricciones del GIL, permitiendo aprovechar mejor los múltiples núcleos de la CPU.
 
-Por cada conexión de un cliente, se crea un proceso hijo que funciona como un manejador de la conexión, y se encarga de recibir las apuestas del cliente y procesarlas, de manera similar al ejercicio anterior. Para poder sincronizar a los procesos hijos a fin de esperar a que todos los clientes hayan enviado sus apuestas, se utilizó una Barrera de sincronización, cuyo contador se decrementa cada vez que un cliente envía todas sus apuestas. Es decir, cuando el servidor recibe un mensaje con el primer byte en 1, tal como se explicó en el ejercicio anterior. Una vez que el contador llega a 0, todos los procesos hijos pueden comenzar con el sorteo. Esto es, cada proceso busca en el archivo de apuestas las apuestas ganadoras de la agencia respectiva a la que le hace handle, y envía los dni de los ganadores.
+Por cada conexión de un cliente, se crea un proceso hijo que funciona como un manejador de la conexión, y se encarga de recibir las apuestas del cliente y procesarlas, de manera similar al ejercicio anterior. Para poder sincronizar a los procesos hijos a fin de esperar a que todos los clientes hayan enviado sus apuestas y luego poder comenzar con el sorteo, se utilizó una Barrera de sincronización, cuyo contador se decrementa cada vez que un cliente envía todas sus apuestas. Una vez que el contador llega a 0, todos los procesos hijos pueden comenzar con el sorteo.
 
-Como todos los procesos hijos tienen que acceder al archivo de apuestas, se utilizó un lock para evitar condiciones de carrera.
+Para realizar el sorteo, cada proceso busca en el archivo de apuestas las apuestas ganadoras de la agencia respectiva a la que le hace handle, y envía los dni de los ganadores al cliente en un mensaje con la misma estructura que el del ejercicio 7.
+
+Como todos los procesos hijos tienen que acceder al archivo de apuestas, se utilizó un lock para evitar condiciones de carrera. El lock se adquiere antes de hacer el llamado a la función que busca los ganadores, y se libera una vez que se termina de buscar.
 
 Al recibir los dni de las personas que ganaron la apuesta de la agencia, el cliente cierra la conexión con el servidor y el archivo de apuestas.
 
