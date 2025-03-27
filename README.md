@@ -79,7 +79,19 @@ Una vez que el cliente envía la apuesta, espera la confirmación del servidor (
 Para enviar las apuestas de a chunks, se toma la cantidad de apuestas a enviar de la variable `maxAmount`, que se encuentra definida en el archivo `config.yaml`. Si el tamaño total de las apuestas supera los 8KB, se reducirá en 3/4 la cantidad de apuestas a enviar, hasta que el tamaño total de las apuestas no supere los 8KB.
 A fin de no leer el archivo completo en memoria, se estableció una cantidad máxima de apuestas leídas en cada iteración, de aproximadamente 8KB.
 
-De manera similar a lo que se hizo en el ejercicio 5, se definió un protocolo de aplicación para enviar los chunks de apuestas, que se envían como mensajes cuyo header contiene 2 bytes para el tamaño en bytes del payload. Dicho payload contiene los mensajes de las apuestas definidos en el ejercicio 5 (2 bytes para la longitud + payload).
+De manera similar a lo que se hizo en el ejercicio 5, se definió un protocolo de aplicación para enviar los chunks de apuestas, que se envían como mensajes cuyo header contiene parse bytes para indicar la cantidad de apuestas que tendrá el payload. Dicho payload contiene los mensajes de las apuestas definidos en el ejercicio 5 (4 bytes para la longitud + payload). Es decir, si se envía un chunk con 3 apuestas, el payload tendrá la siguiente estructura:
+
+```
+<bets_num><bet1><bet2><bet3>
+```
+
+Donde `bets_num` valdría 3 en el ejemplo y cada apuesta tiene la siguiente estructura:
+
+```
+<bytes_length1><agency1>,<first_name1>,<last_name1>,<identification1>,<birthdate1>,<number1>
+<bytes_length2><agency2>,<first_name2>,<last_name2>,<identification2>,<birthdate2>,<number2>
+<bytes_length3><agency3>,<first_name3>,<last_name3>,<identification3>,<birthdate3>,<number3>
+```
 
 Por cada chunk de apuestas enviado, el cliente espera la confirmación del servidor (ACK) para enviar el siguiente chunk. Una vez que se envían todas las apuestas, se cierra la conexión con el servidor.
 
@@ -93,11 +105,19 @@ Una vez que el servidor recibe todas las apuestas de todos los clientes, procede
 
 Al recibir los dni de las personas que ganaron la apuesta de la agencia, el cliente cierra la conexión con el servidor y el archivo de apuestas.
 
+Si se envía un chunk con 3 apuestas, el payload tendrá la siguiente estructura:
+
+```
+<eof_flag><bets_num><bet1><bet2><bet3>
+```
+
+Donde `eof_flag` es un byte que indica si el mensaje contiene las últimas apuestas (1) o no (0) y donde cada apuesta mantiene la misma estructura que en el ejercicio 6.
+
 ### Ejercicio 8
 
 Dado que Python tiene una limitación conocida como Global Interpreter Lock (GIL), que impide la ejecución verdaderamente paralela de múltiples threads en tareas intensivas en CPU decidí utilizar multiprocessing en lugar de multithreading. Cada proceso corre en su propio intérprete de Python, lo que permite una ejecución en paralelo sin las restricciones del GIL, permitiendo aprovechar mejor los múltiples núcleos de la CPU.
 
-Por cada conexión de un cliente, se crea un proceso hijo que funciona como un manejador de la conexión, y se encarga de recibir las apuestas del cliente y procesarlas, de manera similar al ejercicio anterior. Para poder sincronizar a los procesos hijos a fin de esperar a que todos los clientes hayan enviado sus apuestas, se utilizó una Barrera de sincronización, cuyo contador se decrementa cada vez que un cliente envía todas sus apuestas. Es decir, cuando el servidor recibe un mensaje con el primer bit en 1, tal como se explicó en el ejercicio anterior. Una vez que el contador llega a 0, todos los procesos hijos pueden comenzar con el sorteo. Esto es, cada proceso busca en el archivo de apuestas las apuestas ganadoras de la agencia respectiva a la que le hace handle, y envía los dni de los ganadores.
+Por cada conexión de un cliente, se crea un proceso hijo que funciona como un manejador de la conexión, y se encarga de recibir las apuestas del cliente y procesarlas, de manera similar al ejercicio anterior. Para poder sincronizar a los procesos hijos a fin de esperar a que todos los clientes hayan enviado sus apuestas, se utilizó una Barrera de sincronización, cuyo contador se decrementa cada vez que un cliente envía todas sus apuestas. Es decir, cuando el servidor recibe un mensaje con el primer byte en 1, tal como se explicó en el ejercicio anterior. Una vez que el contador llega a 0, todos los procesos hijos pueden comenzar con el sorteo. Esto es, cada proceso busca en el archivo de apuestas las apuestas ganadoras de la agencia respectiva a la que le hace handle, y envía los dni de los ganadores.
 
 Como todos los procesos hijos tienen que acceder al archivo de apuestas, se utilizó un lock para evitar condiciones de carrera.
 

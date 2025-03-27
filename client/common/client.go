@@ -12,7 +12,6 @@ import (
 const (
 	SERVER_ACK string = "ACK"
 	BATCH_MAX_AMOUNT_BYTES int = 8 * 1024
-	DNI_LEN int = 1 // 1 byte
 	EOF_MSG_TRUE uint8 = 1
 	EOF_MSG_FALSE uint8 = 0
 	WINNERS_NUM_BYTES int = 1
@@ -173,7 +172,7 @@ func (c *Client) StartClient() {
 	c.createClientSocket()
 
 	c.sendAgencyID()
-	c.sendBetsAndReceiveAck(csvReader)
+	c.sendBets(csvReader)
 	
 
 	winners, err := c.receiveWinners()
@@ -186,7 +185,7 @@ func (c *Client) StartClient() {
 	c.conn_closed = true
 }
 
-func (c *Client) sendBetsAndReceiveAck(csvReader *csv.Reader) {
+func (c *Client) sendBets(csvReader *csv.Reader) {
 	batch := c.readBetsFromFile(csvReader, c.config.BatchMaxAmount)
 	bets := batch
 	for len(bets) > 0 {

@@ -1,7 +1,5 @@
 
-from multiprocessing import Value, Lock, Condition
-
-import logging
+from multiprocessing import Value, Condition
 
 class SyncBarrier:
     def __init__(self, total_count):
