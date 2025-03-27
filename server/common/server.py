@@ -50,11 +50,6 @@ class Server:
         
         for process in self.processes:
             process.join()     
-           
-        self._is_running = False
-        self._server_socket.shutdown(socket.SHUT_RDWR) 
-        self._server_socket.close()
-        logging.info("action: socket_close | result: success")
 
 
     def handle_sigterm(self, signum, frame):
