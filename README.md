@@ -114,8 +114,9 @@ De manera similar a lo que se hizo en el ejercicio 5, se definió un protocolo d
   - ...
   - **`bet_msgN`**: Mensaje de apuesta N
 
+Donde cada **`bet_msg`** con una apuesta mantiene la misma estructura que en el ejercicio 5:
+
 ```
-  Donde cada mensaje con una apuesta mantiene la misma estructura que en el ejercicio 5:
   <bet_msg1> ::= <header_bytes><payload>
   <bet_msg2> ::= <header_bytes><payload>
   <bet_msg3> ::= <header_bytes><payload>
@@ -158,8 +159,9 @@ La estructura de los mensajes que envía el cliente es la siguiente:
   - ...
   - **`bet_msgN`**: Mensaje de apuesta N
 
+Donde cada **`bet_msg`** con una apuesta mantiene la misma estructura que en el ejercicio 5:
+
 ```
-    Donde cada mensaje con una apuesta mantiene la misma estructura que en el ejercicio 5:
     <bet_msg1> ::= <header_bytes><payload>
     <bet_msg2> ::= <header_bytes><payload>
     <bet_msg3> ::= <header_bytes><payload>
