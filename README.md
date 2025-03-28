@@ -143,9 +143,9 @@ La estructura de los mensajes que envía el cliente es la siguiente:
 
 <eof_flag> ::= 1 byte que indica si el mensaje contiene las últimas apuestas (1) o no (0).
 
-<payload> ::= Cadena de texto en formato UTF-8 que contiene los mensajes de apuestas separados por comas (`,`), de longitud variable.
-
 <bets_num> ::= 1 byte que representa la cantidad de apuestas (0-255), codificado en big-endian.
+
+<payload> ::= Cadena de texto en formato UTF-8 que contiene los mensajes de apuestas separados por comas (`,`), de longitud variable.
 
 ```
 
