@@ -65,7 +65,7 @@ class Server:
                 sock.close()
         
         self.client_socks.clear()
-        return
+
 
 
     def handle_sigterm(self, signum, frame):
