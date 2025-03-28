@@ -31,15 +31,7 @@ class Server:
         """
         
         if not self._is_running:
-            for process in self.processes:
-                process.terminate()
-                process.join()
-                
-            for sock in self.client_socks:
-                if sock is not None:
-                    sock.close()
-            
-            self.client_socks.clear()
+            self.terminate_processes_and_sockets()
             return
             
         while self._is_running:
@@ -63,7 +55,17 @@ class Server:
                 self._server_socket.close()     
 
         
+    def terminate_processes_and_sockets(self):
+        for process in self.processes:
+                process.terminate()
+                process.join()
+                
+        for sock in self.client_socks:
+            if sock is not None:
+                sock.close()
         
+        self.client_socks.clear()
+        return
 
 
     def handle_sigterm(self, signum, frame):
