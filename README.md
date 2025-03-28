@@ -69,10 +69,22 @@ sequenceDiagram
 El cliente envía la apuesta en un mensaje que contiene un header de 4 bytes, en el cual se define la longitud de la apuesta en bytes. Este header es útil para poder saber que cantidad de bytes tendrá que leer el server por cada mensaje, cuya estructura se define a continuación:
 
 ```
-<bytes_length><agency>,<first_name>,<last_name>,<identification>,<birthdate>,<number>
+| <header_bytes> | <payload> |
+
+<header_bytes> ::= 4 bytes que representan la longitud total del payload (big-endian).
+
+<payload> ::= Cadena de texto en formato UTF-8 que contiene los datos de la apuesta separados por comas (`,`), de longitud variable.
+
 ```
 
-Donde todos los elementos de la apuesta separados por ',' (coma)
+- **`header_bytes`**: Un entero de **4 bytes** (codificado en big-endian) que indica la longitud del `payload` en bytes.
+- **`payload`**: Una cadena de texto en formato UTF-8 separada por comas (`,`) de **longitud variable**, que contiene los siguientes campos:
+  - **`agency`**: Numero de agencia (string, UTF-8)
+  - **`first_name`**: Nombre de la persona (string, UTF-8)
+  - **`last_name`**: Apellido de la persona (string, UTF-8)
+  - **`identification`**: Número de identificación (string, UTF-8)
+  - **`birthdate`**: Fecha de nacimiento (string, UTF-8)
+  - **`number`**: Numero de apuesta (string, UTF-8)
 
 La lógica de las apuestas se encuentra en el archivo /clients/common/bet.go, permitiendo separar las responsabilidades entre el modelo de dominio y la capa de comunicación.
 Una vez que el cliente envía la apuesta, espera la confirmación del servidor (ACK) para cerrar su conexión con el servidor y el archivo de apuestas.
