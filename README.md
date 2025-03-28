@@ -114,10 +114,12 @@ De manera similar a lo que se hizo en el ejercicio 5, se definió un protocolo d
   - ...
   - **`bet_msgN`**: Mensaje de apuesta N
 
+```
   Donde cada mensaje con una apuesta mantiene la misma estructura que en el ejercicio 5:
   <bet_msg1> ::= <header_bytes><payload>
   <bet_msg2> ::= <header_bytes><payload>
   <bet_msg3> ::= <header_bytes><payload>
+```
 
 Se decidió utilizar un solo byte para la cantidad de apuestas, porque considerando que podemos mandar hasta 8KB de datos, y que cada apuesta tiene un tamaño aproximado de 50 bytes, se pueden enviar hasta 160 apuestas por chunk aproximadamente.
 
@@ -156,10 +158,12 @@ La estructura de los mensajes que envía el cliente es la siguiente:
   - ...
   - **`bet_msgN`**: Mensaje de apuesta N
 
+```
     Donde cada mensaje con una apuesta mantiene la misma estructura que en el ejercicio 5:
     <bet_msg1> ::= <header_bytes><payload>
     <bet_msg2> ::= <header_bytes><payload>
     <bet_msg3> ::= <header_bytes><payload>
+```
 
 Mientras que la estructura del mensaje que envía el servidor al cliente luego del sorteo es la siguiente:
 
