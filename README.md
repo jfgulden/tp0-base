@@ -86,8 +86,9 @@ El cliente envía la apuesta en un mensaje que contiene un header de 4 bytes, en
   - **`birthdate`**: Fecha de nacimiento (string, UTF-8)
   - **`number`**: Numero de apuesta (string, UTF-8)
 
-La lógica de las apuestas se encuentra en el archivo /clients/common/bet.go, permitiendo separar las responsabilidades entre el modelo de dominio y la capa de comunicación.
-Una vez que el cliente envía la apuesta, espera la confirmación del servidor (ACK) para cerrar su conexión con el servidor y el archivo de apuestas.
+La lógica de las apuestas se encuentra en el archivo `/clients/common/bet.go`, permitiendo separar las responsabilidades entre el modelo de dominio y la capa de comunicación.
+
+Una vez que el cliente envía la apuesta, espera la confirmación del servidor (ACK) antes de cerrar tanto la conexión con el servidor como el archivo de apuestas. Este ACK consiste en un mensaje de texto que contiene exactamente la palabra 'ACK' serializada en UTF-8, lo que indica que el servidor ha recibido correctamente la apuesta.
 
 ### Ejercicio 6
 
