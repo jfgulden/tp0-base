@@ -75,6 +75,8 @@ El cliente envía la apuesta en un mensaje que contiene un header de 4 bytes, en
 
 <payload> ::= Cadena de texto en formato UTF-8 que contiene los datos de la apuesta separados por comas (`,`), de longitud variable.
 
+```
+
 - **`header_bytes`**: Un entero de **4 bytes** (codificado en big-endian) que indica la longitud del `payload` en bytes.
 - **`payload`**: Una cadena de texto en formato UTF-8 separada por comas (`,`) de **longitud variable**, que contiene los siguientes campos:
   - **`agency`**: Numero de agencia (string, UTF-8)
@@ -83,7 +85,6 @@ El cliente envía la apuesta en un mensaje que contiene un header de 4 bytes, en
   - **`identification`**: Número de identificación (string, UTF-8)
   - **`birthdate`**: Fecha de nacimiento (string, UTF-8)
   - **`number`**: Numero de apuesta (string, UTF-8)
-```
 
 La lógica de las apuestas se encuentra en el archivo /clients/common/bet.go, permitiendo separar las responsabilidades entre el modelo de dominio y la capa de comunicación.
 Una vez que el cliente envía la apuesta, espera la confirmación del servidor (ACK) para cerrar su conexión con el servidor y el archivo de apuestas.
@@ -102,20 +103,21 @@ De manera similar a lo que se hizo en el ejercicio 5, se definió un protocolo d
 
 <payload> ::= Cadena de texto en formato UTF-8 que contiene los mensajes de apuestas separados por comas (`,`), de longitud variable.
 
+```
+
 - **`bets_num`**: Un unsigned int de **1 byte** (codificado en big-endian) que indica la cantidad de apuestas que tendrá el `payload`.
 - **`payload`**:
-    - **`bet_msg1`**: Mensaje de apuesta 1
-    - **`bet_msg2`**: Mensaje de apuesta 2
-    - **`bet_msg3`**: Mensaje de apuesta 3
-    - ...
-    - **`bet_msgN`**: Mensaje de apuesta N
 
-    Donde cada mensaje con una apuesta mantiene la misma estructura que en el ejercicio 5:
-    <bet_msg1> ::= <header_bytes><payload>
-    <bet_msg2> ::= <header_bytes><payload>
-    <bet_msg3> ::= <header_bytes><payload>
+  - **`bet_msg1`**: Mensaje de apuesta 1
+  - **`bet_msg2`**: Mensaje de apuesta 2
+  - **`bet_msg3`**: Mensaje de apuesta 3
+  - ...
+  - **`bet_msgN`**: Mensaje de apuesta N
 
-```
+  Donde cada mensaje con una apuesta mantiene la misma estructura que en el ejercicio 5:
+  <bet_msg1> ::= <header_bytes><payload>
+  <bet_msg2> ::= <header_bytes><payload>
+  <bet_msg3> ::= <header_bytes><payload>
 
 Se decidió utilizar un solo byte para la cantidad de apuestas, porque considerando que podemos mandar hasta 8KB de datos, y que cada apuesta tiene un tamaño aproximado de 50 bytes, se pueden enviar hasta 160 apuestas por chunk aproximadamente.
 
@@ -133,8 +135,8 @@ Para esto, se definió un nuevo mensaje que envía el servidor al cliente que co
 La estructura de los mensajes que envía el cliente es la siguiente:
 
 ```
-| <eof_flag> | <bets_num> | <payload> |
 
+| <eof_flag> | <bets_num> | <payload> |
 
 <eof_flag> ::= 1 byte que indica si el mensaje contiene las últimas apuestas (1) o no (0).
 
@@ -142,9 +144,12 @@ La estructura de los mensajes que envía el cliente es la siguiente:
 
 <bets_num> ::= 1 byte que representa la cantidad de apuestas (0-255), codificado en big-endian.
 
+```
+
 - **`eof_flag`**: Un unsigned int de **1 byte** (codificado en big-endian) que indica si el mensaje contiene las últimas apuestas (1) o no (0).
 - **`bets_num`**: Un unsigned int de **1 byte** (codificado en big-endian) que indica la cantidad de apuestas que tendrá el `payload`.
 - **`payload`**: Una cadena de texto en formato UTF-8 separada por comas (`,`), de **longitud variable**, que contiene los siguientes campos:
+
   - **`bet_msg1`**: Mensaje de apuesta 1
   - **`bet_msg2`**: Mensaje de apuesta 2
   - **`bet_msg3`**: Mensaje de apuesta 3
@@ -156,16 +161,17 @@ La estructura de los mensajes que envía el cliente es la siguiente:
     <bet_msg2> ::= <header_bytes><payload>
     <bet_msg3> ::= <header_bytes><payload>
 
-```
-
 Mientras que la estructura del mensaje que envía el servidor al cliente luego del sorteo es la siguiente:
 
 ```
+
 | <bets_num> | <payload> |
 
 <bets_num> ::= 1 byte que representa la cantidad de ganadores (0-255).
 
 <payload> ::= Cadena de texto en formato UTF-8 que contiene los DNI de los ganadores del sorteo, separados por comas (`,`), de longitud variable.
+
+```
 
 - **`bets_num`**: Un unsigned int de **1 byte** (codificado en big-endian) que indica la cantidad de ganadores que tendrá el `payload`.
 - **`payload`**: Una cadena de texto en formato UTF-8 separada por comas (`,`), de **longitud variable**, que contiene los siguientes campos:
@@ -174,8 +180,6 @@ Mientras que la estructura del mensaje que envía el servidor al cliente luego d
   - **`dni3`**: DNI del ganador 3 (string, UTF-8)
   - ...
   - **`dniN`**: DNI del ganador N (string, UTF-8)
-
-```
 
 La decisión de tener un solo byte para la cantidad de ganadores se tomó asumiendo que no habrá más de 255 ganadores por agencia.
 
