@@ -108,8 +108,6 @@ class ClientConnectionHandler:
         total_sent = 0
         while total_sent < len(data):
             sent = self.client_sock.send(data[total_sent:])
-            if sent == 0:
-                raise RuntimeError("Socket connection broken")
             total_sent += sent
 
     def send_winners(self, agency):
