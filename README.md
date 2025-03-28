@@ -129,6 +129,8 @@ Dado que Python tiene una limitación conocida como Global Interpreter Lock (GIL
 
 Por cada conexión de un cliente, se crea un proceso hijo que funciona como un manejador de la conexión, y se encarga de recibir las apuestas del cliente y procesarlas, de manera similar al ejercicio anterior. Para poder sincronizar a los procesos hijos a fin de esperar a que todos los clientes hayan enviado sus apuestas y luego poder comenzar con el sorteo, se utilizó una Barrera de sincronización, cuyo contador se decrementa cada vez que un cliente envía todas sus apuestas. Una vez que el contador llega a 0, todos los procesos hijos pueden comenzar con el sorteo.
 
+Cabe aclarar, que el primer mensaje que enviarán los clientes será un solo byte que contenga el número de agencia. Si bien en cada apuesta se envía el numero de agencia, se decidió hacerlo de esta forma para darle un poco más de elegancia al protocolo y conocer desde un primer momento que agencia será la que se comunicará con cada proceso.
+
 Para realizar el sorteo, cada proceso busca en el archivo de apuestas las apuestas ganadoras de la agencia respectiva a la que le hace handle, y envía los dni de los ganadores al cliente en un mensaje con la misma estructura que el del ejercicio 7.
 
 Como todos los procesos hijos tienen que acceder al archivo de apuestas, se utilizó un lock para evitar condiciones de carrera. El lock se adquiere antes de hacer el llamado a la función que busca los ganadores, y se libera una vez que se termina de buscar.

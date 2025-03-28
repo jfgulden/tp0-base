@@ -14,3 +14,6 @@ class SyncBarrier:
                 self.condition.notify_all()
             else:
                 self.condition.wait()
+
+    def cleanup(self):
+        self.counter.close()

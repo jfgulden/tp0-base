@@ -6,6 +6,7 @@ from common.client_connection_handler import ClientConnectionHandler
 from common.sync_barrier import SyncBarrier
 
 
+
 class Server:
     def __init__(self, port, listen_backlog, agencies_num):
         # Initialize server socket
@@ -14,6 +15,9 @@ class Server:
         self._server_socket.listen(listen_backlog)
         self._is_running = True
         self.client_sock = None
+        self.client_socks = set()
+        self.bets_file_lock = Lock()
+        self.barrier = SyncBarrier(agencies_num)
         self.agencies_num = agencies_num
         self.processes = []
 
@@ -25,16 +29,27 @@ class Server:
         communication with a client. After client with communucation
         finishes, servers starts to accept new connections again
         """
-        bests_file_lock = Lock()
-        barrier = SyncBarrier(self.agencies_num)
-
+        
+        if not self._is_running:
+            for process in self.processes:
+                process.terminate()
+                process.join()
+                
+            for sock in self.client_socks:
+                if sock is not None:
+                    sock.close()
+            
+            self.client_socks.clear()
+            return
+            
         while self._is_running:
             try:
                 self.client_sock, addr = self.__accept_new_connection()
                 if self.client_sock is None or not self._is_running:
                     break
                 
-                process = Process(target=ClientConnectionHandler.New, args=(self.client_sock, addr, bests_file_lock, barrier))
+                self.client_socks.add(self.client_sock)
+                process = Process(target=ClientConnectionHandler.New, args=(self.client_sock, addr, self.bets_file_lock, self.barrier))
                 process.start()
                 self.processes.append(process)
                 
@@ -48,13 +63,7 @@ class Server:
                 self._server_socket.close()     
 
         
-        for process in self.processes:
-            process.join()     
-           
-        self._is_running = False
-        self._server_socket.shutdown(socket.SHUT_RDWR) 
-        self._server_socket.close()
-        logging.info("action: socket_close | result: success")
+        
 
 
     def handle_sigterm(self, signum, frame):
@@ -69,10 +78,6 @@ class Server:
         self._is_running = False
         self._server_socket.shutdown(socket.SHUT_RDWR)
         self._server_socket.close()
-
-        for process in self.processes:
-            process.terminate()
-            process.join()
 
         logging.info("action: socket_close | result: success")
         time.sleep(1)
